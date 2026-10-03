@@ -1,0 +1,7 @@
+/target/
+/dist/
+/bin/nexus
+*.log
+*.zip
+__pycache__/
+/previews-v3/
