@@ -4,16 +4,27 @@ on:
   pull_request:
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 jobs:
   linux:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04"]
+    container: ubuntu:${{ matrix.ubuntu }}
     steps:
+      - name: Install build and diagnostic dependencies
+        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config git curl ca-certificates python3 openssl iproute2 iputils-ping dnsutils
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: rustfmt, clippy
-      - name: Install diagnostic test backends
-        run: sudo apt-get update && sudo apt-get install -y curl openssl iproute2 iputils-ping dnsutils
       - run: cargo fmt --check
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
@@ -22,7 +33,12 @@ jobs:
       - run: python3 tests/responsiveness.py target/release/nexus
       - run: python3 tests/graphics_pty.py target/release/nexus
       - run: python3 scripts/package.py
+      - name: Install and start the generated Debian package
+        run: |
+          apt-get install -y ./dist/nexus-net_*_amd64.deb
+          nexus --version
+          nexus --doctor
       - uses: actions/upload-artifact@v4
         with:
-          name: nexus-linux-amd64
+          name: nexus-linux-amd64-ubuntu-${{ matrix.ubuntu }}
           path: dist/*

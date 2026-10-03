@@ -7,22 +7,35 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+defaults:
+  run:
+    shell: bash
 jobs:
   release:
     runs-on: ubuntu-24.04
+    # Build against the oldest supported userspace, independent of runner retirement.
+    container: ubuntu:22.04
     steps:
+      - name: Install build and diagnostic dependencies
+        run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential pkg-config git curl ca-certificates python3 openssl iproute2 iputils-ping dnsutils gh
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: dtolnay/rust-toolchain@1.88.0
         with:
           components: rustfmt, clippy
-      - name: Install test backends
-        run: sudo apt-get update && sudo apt-get install -y curl openssl iproute2 iputils-ping dnsutils
       - run: cargo fmt --check && cargo test --locked && cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked --release
       - run: python3 tests/terminal_smoke.py target/release/nexus
       - run: python3 tests/responsiveness.py target/release/nexus
       - run: python3 tests/graphics_pty.py target/release/nexus
-      - run: python3 scripts/package.py
+      - run: python3 scripts/package.py --max-glibc 2.35
+      - name: Verify installation on Ubuntu 22.04
+        run: |
+          apt-get install -y ./dist/nexus-net_*_amd64.deb
+          nexus --version
+          nexus --doctor
       - name: Create tagged release
         if: github.event_name == 'push'
         env:
@@ -39,7 +52,7 @@ jobs:
           if gh release view "$release_tag" >/dev/null 2>&1; then
             echo "Release $release_tag already exists; its assets remain unchanged."
           else
-            gh release create "$release_tag" dist/* --target "$RELEASE_SHA" --generate-notes --title "NEXUS $release_tag"
+            gh release create "$release_tag" dist/* --target "$RELEASE_SHA" --notes-file docs/RELEASE.md --title "NEXUS $release_tag"
           fi
       - uses: actions/upload-artifact@v4
         with:

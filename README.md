@@ -8,14 +8,21 @@ command menus.
 
 ![NEXUS overview — labeled example data](docs/overview-preview.png)
 
-## Install NEXUS 0.4.0
+## Install NEXUS 0.4.1
 
-[Download release v0.4.0](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.0) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#040) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
+[Download release v0.4.1](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.1) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#041) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
 
 NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64
-and glibc 2.39+**, including Ubuntu 24.04+. Check with `uname -m` and
+and glibc 2.35+**, including Ubuntu 22.04 and 24.04. Check with `uname -m` and
 `ldd --version`. On older distributions or ARM machines, build from source.
 Windows and macOS do not have native network backends in this release.
+
+The v0.4.1 release is built inside Ubuntu 22.04 and rejects any binary requiring
+GLIBC newer than 2.35. CI builds and installs the package on both Ubuntu 22.04
+and 24.04. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
+libc to install the older package. Other Linux distributions can use the archive
+when their CPU/libc meet these requirements; optional network tools still vary.
+See [Platform support](docs/PORTABILITY.md) for the support matrix and porting scope.
 
 ### Ubuntu / Debian package
 
@@ -26,15 +33,15 @@ your package manager.
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/nexus-net_0.4.0_amd64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_amd64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 Continue only if the downloaded package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.4.0_amd64.deb
+sudo apt install ./nexus-net_0.4.1_amd64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -53,18 +60,18 @@ The archive has the same CPU and glibc requirements. Download and verify it firs
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/nexus-0.4.0-linux-amd64.tar.gz
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-0.4.1-linux-amd64.tar.gz
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the archive reports `OK`:
 
 ```bash
-mkdir -p nexus-0.4.0
-tar -xzf nexus-0.4.0-linux-amd64.tar.gz -C nexus-0.4.0
+mkdir -p nexus-0.4.1
+tar -xzf nexus-0.4.1-linux-amd64.tar.gz -C nexus-0.4.1
 mkdir -p "$HOME/.local/bin"
-install -m 755 nexus-0.4.0/nexus "$HOME/.local/bin/nexus"
+install -m 755 nexus-0.4.1/nexus "$HOME/.local/bin/nexus"
 "$HOME/.local/bin/nexus" --version
 "$HOME/.local/bin/nexus"
 ```
@@ -81,7 +88,7 @@ install a current Rust toolchain through [rustup](https://rustup.rs/) if the
 distribution's Rust is too old.
 
 ```bash
-git clone --branch v0.4.0 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
+git clone --branch v0.4.1 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
 cd network-nexus
 cargo install --locked --path .
 "$HOME/.cargo/bin/nexus" --version

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- Build release packages in an Ubuntu 22.04 container so they can run with glibc 2.35; keep the GitHub runner independent of that compatibility baseline.
+- Fail packaging if a release binary requires a newer GLIBC symbol version than the declared baseline.
+- Build, test and verify actual Debian package installation in Ubuntu 22.04 and 24.04 CI containers.
+- Pin Python 3.12 for packaging tools and document Linux compatibility and the native backend work needed for Windows/macOS.
+
 ## 0.4.0
 
 - Render antialiased, shape-preserving vector curves through Kitty terminal graphics, with a portable curved Braille fallback. Curves retain every measured point and leave gaps for failed replies and pauses.

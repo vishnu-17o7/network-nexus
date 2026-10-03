@@ -7,6 +7,7 @@ root = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
 p.add_argument('--binary', type=Path, default=root / 'target/release/nexus')
 p.add_argument('--out', type=Path, default=root / 'dist')
+p.add_argument('--max-glibc', help='Fail if the executable requires a newer glibc, e.g. 2.35')
 args = p.parse_args()
 binary = args.binary.resolve()
 if not binary.is_file():
@@ -20,6 +21,11 @@ if arch is None:
     raise SystemExit('Packaging currently supports amd64 and arm64 ELF binaries')
 symbols = subprocess.check_output(['readelf', '--version-info', str(binary)], text=True)
 glibc = max(set(re.findall(r'GLIBC_(\d+\.\d+(?:\.\d+)?)', symbols)), key=lambda v: tuple(map(int, v.split('.'))))
+if args.max_glibc:
+    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', args.max_glibc):
+        raise SystemExit('Invalid --max-glibc version')
+    if tuple(map(int, glibc.split('.'))) > tuple(map(int, args.max_glibc.split('.'))):
+        raise SystemExit(f'Executable requires GLIBC {glibc}; release limit is {args.max_glibc}')
 args.out.mkdir(parents=True, exist_ok=True)
 out = args.out.resolve()
 with tempfile.TemporaryDirectory(prefix='nexus-package-') as tmp:
@@ -32,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix='nexus-package-') as tmp:
     shutil.copy2(root / 'README.md', doc / 'README.md')
     shutil.copy2(root / 'LICENSE', doc / 'copyright')
     shutil.copy2(root / 'config.example.toml', doc / 'config.example.toml')
-    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Smooth graph rendering, clearer dashboard, graph inspection and network integrations.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
+    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Ubuntu 22.04-compatible release baseline and verified Debian installation.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
     (doc / 'changelog.gz').write_bytes(gzip.compress(changelog.encode(), mtime=0))
     man = stage / 'usr/share/man/man1'; man.mkdir(parents=True)
     (man / 'nexus.1.gz').write_bytes(gzip.compress((root / 'packaging/nexus.1').read_bytes(), mtime=0))

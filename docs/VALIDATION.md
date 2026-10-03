@@ -1,5 +1,20 @@
 # Validation evidence
 
+## v0.4.1 compatibility gate
+
+CI now builds and tests inside Ubuntu 22.04 and 24.04 containers on a supported
+GitHub-hosted runner. The release uses the Ubuntu 22.04 userspace and runs
+`scripts/package.py --max-glibc 2.35`; a newer imported GLIBC version fails the
+release before publication. Both CI variants install the generated `.deb` and
+run its installed `nexus --version` and `nexus --doctor`. Python 3.12 is selected
+explicitly for the packaging script's `tomllib` dependency.
+
+Check the [GitHub runs](https://github.com/vishnu-17o7/network-nexus/actions) for
+results of this gate. These container tests validate ABI compatibility and
+installation, not every distribution's desktop services, hardware or permissions.
+
+## Application validation (v0.4.0)
+
 Verified in a Linux x86_64 / Ubuntu 24.04 execution environment using Rust 1.88.0,
 Ratatui 0.29, Crossterm 0.28 and the committed Cargo lockfile. The source
 dependency graph requires Rust 1.88 or newer.
@@ -71,8 +86,8 @@ Docker/Podman engines, provider speed tests and broad desktop compatibility were
 not available for end-to-end verification here. External speed/geo services were
 not contacted merely to populate the preview.
 
-The release prebuilt executable targets x86_64 Linux and imports glibc 2.39
-symbols. Older distributions and other CPU/libc combinations should compile
-the source locally. The binary is not a universal Windows/macOS application.
+The v0.4.0 prebuilt executable imported glibc 2.39 symbols. Version 0.4.1
+changes the build baseline and caps requirements at glibc 2.35. Other CPU/libc
+combinations should compile locally until separately built and tested assets exist. The binary is not a universal Windows/macOS application.
 
 See [FEATURES.md](FEATURES.md) for implemented behavior and support boundaries.
