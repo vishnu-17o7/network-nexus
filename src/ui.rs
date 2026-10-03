@@ -182,10 +182,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     header(frame, app, layout[0], t);
     let main = layout[1];
     // Fill the whole content surface so layout gaps match cards and chart layers.
-    frame.render_widget(
-        Block::default().style(Style::default().bg(t.panel)),
-        main,
-    );
+    frame.render_widget(Block::default().style(Style::default().bg(t.panel)), main);
     if app.page == Page::Dashboard {
         dashboard(frame, app, main, t);
     } else {
@@ -766,7 +763,10 @@ fn page(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     );
     if let Some(result) = service {
         f.render_widget(Clear, pieces[0]);
-        f.render_widget(Block::default().style(Style::default().bg(t.panel)), pieces[0]);
+        f.render_widget(
+            Block::default().style(Style::default().bg(t.panel)),
+            pieces[0],
+        );
         let mut lines = vec![Line::from(label(
             format!(
                 "{} · observed {} UTC · {}",
