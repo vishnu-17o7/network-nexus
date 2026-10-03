@@ -7,7 +7,8 @@
 | Ubuntu 22.04 / 24.04, x86_64 | Build, Rust tests, PTY checks and Debian installation are CI targets | `.deb` and `.tar.gz` |
 | Other glibc Linux, x86_64 | Archive targets glibc 2.35+; distro-specific desktop/network tools need validation | `.tar.gz`, or source build |
 | Older glibc Linux | No compatibility claim for the prebuilt GNU binary | Build from source |
-| ARM64 Linux | No prebuilt or native CI coverage in this release | Source build; test on target hardware |
+| ARM64 Linux / 64-bit Raspberry Pi OS Bookworm or newer | Native ARM64 build/test; exact packages checked on Debian 12/13 ARM64; physical Pi hardware unverified | ARM64 `.deb` and `.tar.gz` |
+| 32-bit Raspberry Pi OS (`armhf`), original Pi Zero / Pi 1 | No 32-bit release | Requires a separate compatible build |
 | Alpine / musl Linux | No static-musl release or CI coverage yet | Separate musl build and testing required |
 | macOS, Intel / Apple Silicon | Native backend not implemented | No native release |
 | Windows, x64 / ARM64 | Native backend not implemented | No native release |
@@ -18,13 +19,15 @@ newer than 2.35. Merely lowering the Debian dependency without rebuilding would
 not fix an incompatible executable.
 
 Ubuntu 22.04 and 24.04 CI jobs also install their generated Debian packages and
-run the installed executable. A successful container check does not establish
+run the installed executable. Native ARM64 jobs test the release package in
+Debian 12 and 13 userspaces, including the terminal interaction suites. A successful container check does not establish
 that every Wi-Fi driver, NetworkManager policy or desktop permission works.
 
 ## Broader Linux distribution support
 
-Most of the implementation is already shared across Linux distributions. Further
-release coverage should include native ARM64 builds and a static
+Most of the implementation is already shared across Linux distributions. Native
+ARM64 release builds are included. Further coverage should include 32-bit Pi OS
+and a static
 `x86_64-unknown-linux-musl` / `aarch64-unknown-linux-musl` build, followed by
 runtime checks on representative glibc and musl distributions. Static linking
 reduces libc dependencies; it does not bundle kernel features, CA certificates
@@ -63,6 +66,8 @@ support. Text graphs remain necessary for terminals without supported graphics.
 
 ## References
 
+- [Raspberry Pi OS architecture](https://www.raspberrypi.com/documentation/computers/os.html)
+- [Raspberry Pi 64-bit models](https://www.raspberrypi.com/news/raspberry-pi-os-64-bit/)
 - [Rust platform targets](https://doc.rust-lang.org/rustc/platform-support.html)
 - [Rust C runtime linkage](https://doc.rust-lang.org/reference/linkage.html#static-and-dynamic-c-runtimes)
 - [Windows adapter enumeration](https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses)

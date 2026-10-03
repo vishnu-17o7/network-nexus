@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Build a .deb and binary archive, without installing or changing networking."""
-import argparse, gzip, hashlib, os, re, shutil, subprocess, tarfile, tempfile, tomllib
+import argparse, gzip, hashlib, os, re, shutil, subprocess, tarfile, tempfile
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # Ubuntu 22.04 system Python 3.10
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]

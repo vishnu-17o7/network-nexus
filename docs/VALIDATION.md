@@ -5,9 +5,17 @@
 CI now builds and tests inside Ubuntu 22.04 and 24.04 containers on a supported
 GitHub-hosted runner. The release uses the Ubuntu 22.04 userspace and runs
 `scripts/package.py --max-glibc 2.35`; a newer imported GLIBC version fails the
-release before publication. Both CI variants install the generated `.deb` and
-run its installed `nexus --version` and `nexus --doctor`. Python 3.12 is selected
-explicitly for the packaging script's `tomllib` dependency.
+release before publication. The CI jobs install the generated `.deb` and
+run its installed `nexus --version` and `nexus --doctor`. Each container uses its
+own Python; Python 3.10 uses the `python3-tomli` package for TOML parsing.
+
+Native ARM64 build jobs run the Rust, lint and PTY suites. The exact ARM64 release
+artifacts then undergo installation, navigation, blocked-I/O responsiveness and
+graphics PTY checks in Debian 12 and 13 ARM64 containers. The amd64 release
+artifact is also installed and exercised in Ubuntu 24.04. Publication waits for
+all these gates. This covers a compatible userspace for 64-bit Raspberry Pi OS;
+physical Pi hardware, wireless drivers, 32-bit OS images and board-specific
+permissions have not been tested.
 
 Check the [GitHub runs](https://github.com/vishnu-17o7/network-nexus/actions) for
 results of this gate. These container tests validate ABI compatibility and
@@ -87,7 +95,7 @@ not available for end-to-end verification here. External speed/geo services were
 not contacted merely to populate the preview.
 
 The v0.4.0 prebuilt executable imported glibc 2.39 symbols. Version 0.4.1
-changes the build baseline and caps requirements at glibc 2.35. Other CPU/libc
+changes the build baseline and caps requirements at glibc 2.35. Native amd64 and ARM64 assets are provided. Other CPU/libc
 combinations should compile locally until separately built and tested assets exist. The binary is not a universal Windows/macOS application.
 
 See [FEATURES.md](FEATURES.md) for implemented behavior and support boundaries.

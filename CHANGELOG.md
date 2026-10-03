@@ -5,7 +5,10 @@
 - Build release packages in an Ubuntu 22.04 container so they can run with glibc 2.35; keep the GitHub runner independent of that compatibility baseline.
 - Fail packaging if a release binary requires a newer GLIBC symbol version than the declared baseline.
 - Build, test and verify actual Debian package installation in Ubuntu 22.04 and 24.04 CI containers.
-- Pin Python 3.12 for packaging tools and document Linux compatibility and the native backend work needed for Windows/macOS.
+- Use each build container's own Python and a tomli fallback on Python 3.10, avoiding an incompatible host-toolcache Python.
+- Add native ARM64 Debian packages and archives for 64-bit Raspberry Pi OS and other compatible ARM64 Linux systems.
+- Verify the exact ARM64 release packages and terminal behavior in Debian 12 and 13 before publishing both architectures together.
+- Add Raspberry Pi install steps, architecture checks and explicit 32-bit/hardware testing limits; document Windows/macOS native backend work.
 
 ## 0.4.0
 

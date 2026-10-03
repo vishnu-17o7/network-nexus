@@ -1,15 +1,17 @@
 # NEXUS 0.4.1 release
 
 This patch fixes the v0.4.0 installation failure on Ubuntu 22.04. Release binaries
-are built in an Ubuntu 22.04 container and packaging rejects requirements newer
+are built natively for amd64 and ARM64 in Ubuntu 22.04 containers and packaging rejects requirements newer
 than GLIBC 2.35. CI also installs the generated Debian package and runs the installed
 executable. The host system does not need a libc replacement.
 
 Smooth charts use Kitty-compatible terminal graphics; other terminals fall back to portable text. Space freezes graph history, [ / ] changes the traffic/probe range, and collection continues. See README for renderer selection and support boundaries.
 
-The release includes a Linux amd64 `.deb`, a binary archive, source and checksums.
+The release includes Linux amd64 and ARM64 `.deb` packages and binary archives,
+source and shared checksums. ARM64 packages target 64-bit Raspberry Pi OS Bookworm
+or newer and other compatible ARM64 Linux systems.
 The prebuilt executable targets glibc 2.35 or newer. Ubuntu 22.04 and 24.04 are CI targets;
-older systems and other architectures should build from source.
+older systems and unlisted architectures should build from source.
 
 ```bash
 sudo apt install ./nexus-net_0.4.1_amd64.deb
@@ -40,4 +42,6 @@ git clone nexus-net.bundle nexus-net
 
 Source tracking: https://github.com/vishnu-17o7/network-nexus. GitHub build and release status must be checked separately from the locally validated binaries.
 
-Common Linux distributions can use the standalone archive when they meet the CPU/libc requirements. Native Windows, macOS and static-musl releases are not included. See [platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md).
+Common Linux distributions can use the standalone archive when they meet the CPU/libc requirements. Native Windows, macOS, 32-bit ARM and static-musl releases are not included. See [platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md).
+
+For Raspberry Pi, check `dpkg --print-architecture` reports `arm64`, then use `nexus-net_0.4.1_arm64.deb`. An `armhf` userspace cannot use this package, even with a 64-bit kernel. The ARM64 release artifacts pass installation and PTY checks on native ARM64 Debian 12/13 CI userspaces before publication; real Pi hardware and Wi-Fi drivers remain unverified. Full commands are in the [README](https://github.com/vishnu-17o7/network-nexus#raspberry-pi--64-bit-raspberry-pi-os).

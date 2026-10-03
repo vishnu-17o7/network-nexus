@@ -3,7 +3,7 @@ name = "nexus-net"
 version = "0.4.1"
 edition = "2021"
 rust-version = "1.88"
-description = "A terminal-native Linux network control center"
+description = "A terminal-native Linux and Raspberry Pi network control center"
 license = "MIT"
 
 [[bin]]

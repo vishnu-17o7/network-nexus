@@ -12,14 +12,14 @@ command menus.
 
 [Download release v0.4.1](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.1) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#041) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
 
-NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64
+NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64 or ARM64
 and glibc 2.35+**, including Ubuntu 22.04 and 24.04. Check with `uname -m` and
-`ldd --version`. On older distributions or ARM machines, build from source.
+`ldd --version`. On older distributions or other CPU architectures, build from source.
 Windows and macOS do not have native network backends in this release.
 
 The v0.4.1 release is built inside Ubuntu 22.04 and rejects any binary requiring
-GLIBC newer than 2.35. CI builds and installs the package on both Ubuntu 22.04
-and 24.04. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
+GLIBC newer than 2.35. CI builds and installs the package on Ubuntu 22.04 and 24.04, with native ARM64
+builds and additional Debian 12/13 ARM64 installation and terminal checks. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
 libc to install the older package. Other Linux distributions can use the archive
 when their CPU/libc meet these requirements; optional network tools still vary.
 See [Platform support](docs/PORTABILITY.md) for the support matrix and porting scope.
@@ -53,9 +53,58 @@ Run NEXUS as your normal user; supported changes retain their confirmation and
 authorization flow. Installing a newer `.deb` with the same command upgrades the
 package. To uninstall the application: `sudo apt remove nexus-net`.
 
+### Raspberry Pi — 64-bit Raspberry Pi OS
+
+Use **Raspberry Pi OS Bookworm or newer, 64-bit**, on a Pi 3, 4, 5, 400/500,
+compatible Compute Module, or Zero 2 W. The package requires an ARM64 userspace
+and glibc 2.35+. Confirm the OS architecture before downloading:
+
+```bash
+dpkg --print-architecture
+ldd --version
+```
+
+The architecture must be `arm64`. A 64-bit kernel (`uname -m` reporting
+`aarch64`) can still run a 32-bit userspace, so use the `dpkg` result.
+An `armhf` installation needs a separate 32-bit build, which this release does
+not provide. Original Pi Zero / Zero W and Pi 1 are not supported by the ARM64 binary.
+
+On a compatible system:
+
+```bash
+mkdir -p nexus-pi-downloads
+cd nexus-pi-downloads
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_arm64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+After the package reports `OK`:
+
+```bash
+sudo apt install ./nexus-net_0.4.1_arm64.deb
+nexus --version
+nexus --doctor
+nexus
+```
+
+Raspberry Pi OS Lite and SSH sessions can use the text renderer:
+`nexus --chart-renderer text`. Smooth graphics over SSH depend on the terminal
+on the computer you connect from. The Pi does not need a desktop to run NEXUS.
+Wi-Fi and configuration actions depend on the Pi's installed network backend and
+permissions. Native ARM64 CI verifies the executable and Debian userspace;
+physical Pi hardware and wireless drivers have not been tested here.
+
+| Machine / userspace | Debian package | Standalone archive |
+| --- | --- | --- |
+| x86_64 / amd64 Linux | `nexus-net_0.4.1_amd64.deb` | `nexus-0.4.1-linux-amd64.tar.gz` |
+| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.4.1_arm64.deb` | `nexus-0.4.1-linux-arm64.tar.gz` |
+
 ### Standalone archive — no root required
 
-The archive has the same CPU and glibc requirements. Download and verify it first:
+The archives have the same CPU and glibc requirements. The commands below use
+amd64; on ARM64, use `nexus-0.4.1-linux-arm64.tar.gz` in both download and
+extraction commands. Download and verify first:
 
 ```bash
 mkdir -p nexus-downloads
