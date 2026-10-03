@@ -136,6 +136,16 @@ fn main() {
     app.dispatch("chart-pause");
     render(&dir.join("overview-paused.json"), &app, 140, 42);
     app.dispatch("chart-pause");
+    let assessment = app.assessment.take();
+    let probes = std::mem::take(&mut app.probes);
+    let dns_ms = app.dns_ms.take();
+    render(&dir.join("overview-unmeasured.json"), &app, 140, 42);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Text;
+    render(&dir.join("overview-unmeasured-text.json"), &app, 140, 42);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Preview;
+    app.assessment = assessment;
+    app.probes = probes;
+    app.dns_ms = dns_ms;
     app.notification = "PREVIEW FIXTURE · example data, not a live network measurement".into();
     app.page = Page::Tools;
     render(&dir.join("diagnostics.json"), &app, 140, 36);

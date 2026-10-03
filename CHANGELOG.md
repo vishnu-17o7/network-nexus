@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2
+
+- Remove dark background seams between metric cards, charts and findings by painting one continuous main content surface.
+- Match service summaries and empty states to the same surface across all six themes and custom colors.
+- Keep text charts and pixel graphics on the same background; preserve header/footer separation and selected-row highlights.
+- Add background regression checks across all pages, compact/tall layouts, empty/populated charts and both renderers.
+- Generate real widget/chart preview artifacts in CI and refresh documentation screenshots, including the unmeasured text-renderer view.
+- Publish refreshed Ubuntu 22.04-compatible amd64 and Raspberry Pi ARM64 packages and archives.
+
 ## 0.4.1
 
 - Build release packages in an Ubuntu 22.04 container so they can run with glibc 2.35; keep the GitHub runner independent of that compatibility baseline.

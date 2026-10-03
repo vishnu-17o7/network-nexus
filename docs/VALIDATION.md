@@ -1,5 +1,13 @@
 # Validation evidence
 
+## v0.4.2 background regression
+
+The widget-buffer checks require every main-content cell to use the panel surface, allowing the intentional selected-row highlight on table pages. Coverage includes all 17 pages, six themes and terminal sizes from 40×12 to 240×80.
+
+A dedicated dashboard check covers empty and populated traffic, unmeasured latency, text and pixel renderers, all six themes plus strongly contrasting custom background/panel colors, and compact, tall and wide layouts. It checks every content cell and the actual graphics raster background, while retaining the separate navigation/footer background.
+
+The Ubuntu 22.04 amd64 CI job exports real widget buffers and renderer PNG/SVG layers as the `nexus-ui-previews` artifact. Documentation screenshots are composed from those exact buffers and chart layers, including an unmeasured text-renderer view matching the reported seam issue. Formatting, Rust tests, Clippy, PTY behavior and package-installation gates remain required.
+
 ## v0.4.1 compatibility gate
 
 CI now builds and tests inside Ubuntu 22.04 and 24.04 containers on a supported

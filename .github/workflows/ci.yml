@@ -35,6 +35,14 @@ jobs:
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked --release
+      - name: Render documentation fixtures
+        if: matrix.arch == 'amd64' && matrix.ubuntu == '22.04'
+        run: cargo run --locked --example render_previews -- target/ui-previews
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'amd64' && matrix.ubuntu == '22.04'
+        with:
+          name: nexus-ui-previews
+          path: target/ui-previews/
       - run: python3 tests/terminal_smoke.py target/release/nexus
       - run: python3 tests/responsiveness.py target/release/nexus
       - run: python3 tests/graphics_pty.py target/release/nexus

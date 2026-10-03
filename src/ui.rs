@@ -181,6 +181,11 @@ pub fn draw(frame: &mut Frame, app: &App) {
     .split(area);
     header(frame, app, layout[0], t);
     let main = layout[1];
+    // Fill the whole content surface so layout gaps match cards and chart layers.
+    frame.render_widget(
+        Block::default().style(Style::default().bg(t.panel)),
+        main,
+    );
     if app.page == Page::Dashboard {
         dashboard(frame, app, main, t);
     } else {
@@ -761,7 +766,7 @@ fn page(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     );
     if let Some(result) = service {
         f.render_widget(Clear, pieces[0]);
-        f.render_widget(Block::default().style(Style::default().bg(t.bg)), pieces[0]);
+        f.render_widget(Block::default().style(Style::default().bg(t.panel)), pieces[0]);
         let mut lines = vec![Line::from(label(
             format!(
                 "{} · observed {} UTC · {}",
@@ -1287,6 +1292,83 @@ mod tests {
     use super::*;
     use crate::config::{Config, History};
     #[test]
+    fn dashboard_background_matches_text_and_graphics_layers() {
+        use crate::graphics::Mode;
+        for name in [
+            "dark",
+            "oled",
+            "catppuccin",
+            "tokyo-night",
+            "gruvbox",
+            "light",
+            "custom",
+        ] {
+            let mut config = Config {
+                theme: name.into(),
+                ..Default::default()
+            };
+            if name == "custom" {
+                config
+                    .custom_colors
+                    .insert("background".into(), "#010203".into());
+                config
+                    .custom_colors
+                    .insert("panel".into(), "#314159".into());
+            }
+            let mut app = App::new(config, History::default());
+            app.started = std::time::Instant::now() - std::time::Duration::from_secs(1);
+            for populated in [false, true] {
+                if populated {
+                    for n in 0..10 {
+                        app.history.samples.push(crate::model::Sample {
+                            at: chrono::Utc::now() - chrono::Duration::seconds((9 - n) * 2),
+                            rx: 1000.0 + n as f64 * 100.0,
+                            tx: 100.0,
+                            latency: None,
+                            loss: None,
+                            dns_ms: None,
+                        });
+                    }
+                }
+                for mode in [Mode::Text, Mode::Preview] {
+                    app.graphics.borrow_mut().mode = mode;
+                    for (w, h) in [(140, 42), (110, 32), (80, 24), (60, 48), (40, 12)] {
+                        let mut terminal =
+                            Terminal::new(ratatui::backend::TestBackend::new(w, h)).unwrap();
+                        terminal.draw(|f| draw(f, &app)).unwrap();
+                        let theme = Theme::from_app(&app);
+                        let buffer = terminal.backend().buffer();
+                        for y in 3..h - 2 {
+                            for x in 0..w {
+                                assert_eq!(
+                                    buffer[(x, y)].bg,
+                                    theme.panel,
+                                    "{name} / {mode:?} / {w}x{h}: background seam at {x},{y}"
+                                );
+                            }
+                        }
+                        assert_eq!(buffer[(0, 2)].bg, theme.bg);
+                        assert_eq!(buffer[(w - 1, h - 1)].bg, theme.bg);
+                        let graphics = app.graphics.borrow();
+                        if populated && mode == Mode::Preview && h >= 24 {
+                            assert!(!graphics.requests.is_empty());
+                        }
+                        let rgba = match theme.panel {
+                            Color::Rgb(r, g, b) => [r, g, b, 255],
+                            Color::White => [255; 4],
+                            _ => unreachable!(),
+                        };
+                        for plot in graphics.requests.values() {
+                            assert_eq!(plot.theme.panel, theme.panel);
+                            let pixels = plot.raster((10, 23)).unwrap();
+                            assert_eq!(&pixels.data()[..4], &rgba);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[test]
     fn plotted_samples_have_axes_two_traces_and_no_filled_bars() {
         let mut app = App::new(Config::default(), History::default());
         app.started = std::time::Instant::now() - std::time::Duration::from_secs(1);
@@ -1419,6 +1501,20 @@ mod tests {
                 for page in Page::ALL {
                     app.page = page;
                     terminal.draw(|f| draw(f, &app)).unwrap();
+                    if w >= 40 && h >= 12 {
+                        let theme = Theme::from_app(&app);
+                        let buffer = terminal.backend().buffer();
+                        for y in 3..h - 2 {
+                            for x in 0..w {
+                                let bg = buffer[(x, y)].bg;
+                                assert!(
+                                    bg == theme.panel || bg == theme.border,
+                                    "{page:?} / {} / {w}x{h}: background seam at {x},{y}: {bg:?}",
+                                    app.config.theme
+                                );
+                            }
+                        }
+                    }
                 }
                 for modal in [
                     Modal::Form(crate::app::Form {

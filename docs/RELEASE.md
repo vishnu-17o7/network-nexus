@@ -1,47 +1,55 @@
-# NEXUS 0.4.1 release
+# NEXUS 0.4.2 release
 
-This patch fixes the v0.4.0 installation failure on Ubuntu 22.04. Release binaries
-are built natively for amd64 and ARM64 in Ubuntu 22.04 containers and packaging rejects requirements newer
-than GLIBC 2.35. CI also installs the generated Debian package and runs the installed
-executable. The host system does not need a libc replacement.
+This patch removes the dark background bars between metric cards, graphs and
+findings. The entire main content area now has one continuous surface, including
+layout spacing, empty states and service summaries. Text charts and pixel graphics
+use the same background. All six themes and custom colors are covered; navigation,
+footer and selected-row styling retain their visual hierarchy.
 
-Smooth charts use Kitty-compatible terminal graphics; other terminals fall back to portable text. Space freezes graph history, [ / ] changes the traffic/probe range, and collection continues. See README for renderer selection and support boundaries.
+Background regression checks cover all 17 pages and compact, tall and wide
+terminals, plus empty/populated charts in both renderers. CI exports the actual
+widget buffers and PNG/SVG chart layers used for the refreshed screenshots.
 
 The release includes Linux amd64 and ARM64 `.deb` packages and binary archives,
-source and shared checksums. ARM64 packages target 64-bit Raspberry Pi OS Bookworm
-or newer and other compatible ARM64 Linux systems.
-The prebuilt executable targets glibc 2.35 or newer. Ubuntu 22.04 and 24.04 are CI targets;
-older systems and unlisted architectures should build from source.
+source and shared checksums. Native builds retain the Ubuntu 22.04 baseline and
+reject imported GLIBC requirements newer than 2.35. The release gates run Rust
+formatting, tests, Clippy, terminal navigation, blocked-I/O responsiveness and
+graphics transport checks, then verify the exact packages on Ubuntu 24.04 amd64
+and Debian 12/13 ARM64 before publication.
+
+For Ubuntu/Debian amd64, download the `.deb` and `SHA256SUMS` from this release.
+Verify that the downloaded package reports `OK`, then install:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_amd64.deb
+sha256sum --check --ignore-missing SHA256SUMS
+sudo apt install ./nexus-net_0.4.2_amd64.deb
+nexus --version
 nexus
 ```
 
+For **64-bit Raspberry Pi OS Bookworm or newer**, confirm
+`dpkg --print-architecture` reports `arm64`, then install
+`nexus-net_0.4.2_arm64.deb` with the same steps. An `armhf` userspace cannot use
+this package, even with a 64-bit kernel. Physical Pi hardware and wireless drivers
+remain outside the automated test coverage.
+
 The package installs `/usr/bin/nexus`, a manual page and a terminal desktop
 launcher. It contains no maintainer scripts or service and does not alter network
-configuration. Optional networking utilities are recommended or suggested.
+configuration. Installing the newer `.deb` upgrades the existing package.
 
-Pi-hole requires the v6 API; Tailscale requires its installed CLI and daemon. Connect explicitly via Ctrl+K. Credentials are session-only, and configuration controls keep the preview/confirmation flow. See README for setup and limitations.
+Smooth curves use Kitty-compatible terminal graphics. Other terminals and
+tmux/screen use portable text graphs. Space freezes graph history while collection
+continues; [ / ] changes the range. The background fix applies to both renderers,
+including SSH sessions.
 
-All external checks remain explicit. Press `d` to run the diagnostic sequence,
-then choose a finding to inspect its evidence and next step. Use Ctrl+K for
-HTTP, DNS, DNS-over-TLS, TLS and configuration tools.
+External checks remain explicit. Pi-hole uses the v6 API; Tailscale uses its
+installed CLI and daemon. Credentials remain session-only and configuration
+changes retain preview and confirmation.
 
-The GitHub workflows run formatting, tests, Clippy, release build, PTY and
-blocked-I/O responsiveness checks in Ubuntu 22.04 and 24.04 userspaces. The release
-job uses the Ubuntu 22.04 baseline and a maximum-GLIBC gate. The release workflow builds assets and creates
-a GitHub release for a pushed `v*` tag or a main-branch commit that changes Cargo.toml. Main-branch publishing skips an existing version rather than replacing its assets. A manual run only creates downloadable workflow artifacts.
+Full [installation and upgrade instructions](https://github.com/vishnu-17o7/network-nexus#install-nexus-042)
+are in the README, including checksums, standalone archives and source builds.
+Common Linux distributions can use the archive when CPU/libc requirements match.
+Native Windows, macOS, 32-bit ARM and static-musl assets are not included; see
+[platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md).
 
-The included source archive contains `nexus-net.bundle`, the original v0.2.0/v0.3.0 Git history
-bundle. Current development history is tracked in GitHub. To recover that history:
-
-```bash
-git clone nexus-net.bundle nexus-net
-```
-
-Source tracking: https://github.com/vishnu-17o7/network-nexus. GitHub build and release status must be checked separately from the locally validated binaries.
-
-Common Linux distributions can use the standalone archive when they meet the CPU/libc requirements. Native Windows, macOS, 32-bit ARM and static-musl releases are not included. See [platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md).
-
-For Raspberry Pi, check `dpkg --print-architecture` reports `arm64`, then use `nexus-net_0.4.1_arm64.deb`. An `armhf` userspace cannot use this package, even with a 64-bit kernel. The ARM64 release artifacts pass installation and PTY checks on native ARM64 Debian 12/13 CI userspaces before publication; real Pi hardware and Wi-Fi drivers remain unverified. Full commands are in the [README](https://github.com/vishnu-17o7/network-nexus#raspberry-pi--64-bit-raspberry-pi-os).
+Source and build history: https://github.com/vishnu-17o7/network-nexus.

@@ -8,16 +8,16 @@ command menus.
 
 ![NEXUS overview — labeled example data](docs/overview-preview.png)
 
-## Install NEXUS 0.4.1
+## Install NEXUS 0.4.2
 
-[Download release v0.4.1](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.1) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#041) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
+[Download release v0.4.2](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.2) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#042) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
 
 NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64 or ARM64
 and glibc 2.35+**, including Ubuntu 22.04 and 24.04. Check with `uname -m` and
 `ldd --version`. On older distributions or other CPU architectures, build from source.
 Windows and macOS do not have native network backends in this release.
 
-The v0.4.1 release is built inside Ubuntu 22.04 and rejects any binary requiring
+The v0.4.2 release is built inside Ubuntu 22.04 and rejects any binary requiring
 GLIBC newer than 2.35. CI builds and installs the package on Ubuntu 22.04 and 24.04, with native ARM64
 builds and additional Debian 12/13 ARM64 installation and terminal checks. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
 libc to install the older package. Other Linux distributions can use the archive
@@ -33,15 +33,15 @@ your package manager.
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_amd64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/nexus-net_0.4.2_amd64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 Continue only if the downloaded package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_amd64.deb
+sudo apt install ./nexus-net_0.4.2_amd64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -74,15 +74,15 @@ On a compatible system:
 ```bash
 mkdir -p nexus-pi-downloads
 cd nexus-pi-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_arm64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/nexus-net_0.4.2_arm64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_arm64.deb
+sudo apt install ./nexus-net_0.4.2_arm64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -97,30 +97,30 @@ physical Pi hardware and wireless drivers have not been tested here.
 
 | Machine / userspace | Debian package | Standalone archive |
 | --- | --- | --- |
-| x86_64 / amd64 Linux | `nexus-net_0.4.1_amd64.deb` | `nexus-0.4.1-linux-amd64.tar.gz` |
-| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.4.1_arm64.deb` | `nexus-0.4.1-linux-arm64.tar.gz` |
+| x86_64 / amd64 Linux | `nexus-net_0.4.2_amd64.deb` | `nexus-0.4.2-linux-amd64.tar.gz` |
+| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.4.2_arm64.deb` | `nexus-0.4.2-linux-arm64.tar.gz` |
 
 ### Standalone archive — no root required
 
 The archives have the same CPU and glibc requirements. The commands below use
-amd64; on ARM64, use `nexus-0.4.1-linux-arm64.tar.gz` in both download and
+amd64; on ARM64, use `nexus-0.4.2-linux-arm64.tar.gz` in both download and
 extraction commands. Download and verify first:
 
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-0.4.1-linux-amd64.tar.gz
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/nexus-0.4.2-linux-amd64.tar.gz
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.2/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the archive reports `OK`:
 
 ```bash
-mkdir -p nexus-0.4.1
-tar -xzf nexus-0.4.1-linux-amd64.tar.gz -C nexus-0.4.1
+mkdir -p nexus-0.4.2
+tar -xzf nexus-0.4.2-linux-amd64.tar.gz -C nexus-0.4.2
 mkdir -p "$HOME/.local/bin"
-install -m 755 nexus-0.4.1/nexus "$HOME/.local/bin/nexus"
+install -m 755 nexus-0.4.2/nexus "$HOME/.local/bin/nexus"
 "$HOME/.local/bin/nexus" --version
 "$HOME/.local/bin/nexus"
 ```
@@ -137,7 +137,7 @@ install a current Rust toolchain through [rustup](https://rustup.rs/) if the
 distribution's Rust is too old.
 
 ```bash
-git clone --branch v0.4.1 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
+git clone --branch v0.4.2 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
 cd network-nexus
 cargo install --locked --path .
 "$HOME/.cargo/bin/nexus" --version
@@ -171,9 +171,11 @@ tools or services. Missing tools are reported in the UI; basic local monitoring
 works without root. Do not install multiple NEXUS copies unless you intend to
 manage their PATH order (`command -v nexus` shows the selected executable).
 
-*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png)*
+*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png) · [Unmeasured text view](docs/overview-unmeasured-text.png)*
 
 ## First session
+
+The main content uses one continuous background across cards, chart layers, empty states and their spacing. The outer navigation/footer and selected rows retain their own styling. This applies to all built-in themes and custom colors.
 
 The Tokscale-inspired dashboard puts live metrics and smooth charts first, with findings and network context below. Download and upload have separate traces; latency retains real spikes and gaps for missing replies. Narrow terminals prioritize columns (Enter shows all fields), and tall dashboards stack the plots. A 30 FPS event loop keeps input and progress responsive; measurements update independently.
 
