@@ -8,37 +8,112 @@ command menus.
 
 ![NEXUS overview — labeled example data](docs/overview-preview.png)
 
-## Install the Debian release
+## Install NEXUS 0.4.0
 
-The provided `.deb` targets **amd64 Linux with glibc 2.39+** (including Ubuntu 24.04+).
-It installs `nexus`, a manual page and a terminal desktop launcher. It does not
-start a service or change network settings.
+[Download release v0.4.0](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.0) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#040) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
+
+NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64
+and glibc 2.39+**, including Ubuntu 24.04+. Check with `uname -m` and
+`ldd --version`. On older distributions or ARM machines, build from source.
+Windows and macOS do not have native network backends in this release.
+
+### Ubuntu / Debian package
+
+On a compatible amd64 system, download the package and its release checksums into
+an empty directory. If needed, first install `curl` and `ca-certificates` with
+your package manager.
+
+```bash
+mkdir -p nexus-downloads
+cd nexus-downloads
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/nexus-net_0.4.0_amd64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+Continue only if the downloaded package reports `OK`:
 
 ```bash
 sudo apt install ./nexus-net_0.4.0_amd64.deb
+nexus --version
+nexus --doctor
 nexus
 ```
 
-## Run
+The package installs `/usr/bin/nexus`, a manual page (`man nexus`) and a terminal
+desktop launcher. It does not start a service or change network settings.
+Run NEXUS as your normal user; supported changes retain their confirmation and
+authorization flow. Installing a newer `.deb` with the same command upgrades the
+package. To uninstall the application: `sudo apt remove nexus-net`.
 
-Install Rust **1.88 or newer**, then:
+### Standalone archive — no root required
+
+The archive has the same CPU and glibc requirements. Download and verify it first:
 
 ```bash
-cargo run --locked --release
+mkdir -p nexus-downloads
+cd nexus-downloads
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/nexus-0.4.0-linux-amd64.tar.gz
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.0/SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
 ```
 
-Or install the executable:
+After the archive reports `OK`:
 
 ```bash
+mkdir -p nexus-0.4.0
+tar -xzf nexus-0.4.0-linux-amd64.tar.gz -C nexus-0.4.0
+mkdir -p "$HOME/.local/bin"
+install -m 755 nexus-0.4.0/nexus "$HOME/.local/bin/nexus"
+"$HOME/.local/bin/nexus" --version
+"$HOME/.local/bin/nexus"
+```
+
+If `nexus` is not found by name, add `export PATH="$HOME/.local/bin:$PATH"` to
+your shell configuration and open a new terminal. Remove
+`$HOME/.local/bin/nexus` to uninstall this copy.
+
+### Build from source
+
+Install **Rust 1.88 or newer** and a C compiler/linker. On Ubuntu/Debian,
+`sudo apt install build-essential pkg-config git` supplies the system build tools;
+install a current Rust toolchain through [rustup](https://rustup.rs/) if the
+distribution's Rust is too old.
+
+```bash
+git clone --branch v0.4.0 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
+cd network-nexus
 cargo install --locked --path .
-nexus
+"$HOME/.cargo/bin/nexus" --version
+"$HOME/.cargo/bin/nexus"
 ```
 
-The release `.tar.gz` contains `nexus` at its root, built for **Linux x86_64,
-glibc 2.39 or newer**. On older distributions, ARM machines or musl systems,
-build from source instead. The app does not need root to open or monitor local
-state. Recommended terminal size: 110 × 32; compact monitoring layouts work from 40 × 12.
-Configuration confirmation requires at least 80 × 24 so values can be reviewed.
+For an existing checkout, `cargo run --locked --release` builds and starts the
+application. Add `$HOME/.cargo/bin` to your PATH if Cargo's environment setup has
+not already done so. `cargo uninstall nexus-net` removes a Cargo-installed copy.
+
+### Terminal setup and optional tools
+
+For smooth pixel-level curves, launch NEXUS in **Kitty or a compatible terminal
+such as Ghostty**. Auto mode selects graphics for known compatible terminals;
+other terminals and tmux/screen use text graphs. You can explicitly select a
+renderer with `nexus --chart-renderer kitty` or `nexus --chart-renderer text`.
+See [Smooth graphs](#smooth-graphs) for the complete behavior.
+
+Recommended terminal size: **110 × 32**; compact monitoring layouts work from
+**40 × 12**. Configuration confirmation requires at least **80 × 24**.
+
+Run `nexus --doctor` to see which optional network utilities are available.
+On Ubuntu/Debian, common diagnostic tools can be installed with:
+
+```bash
+sudo apt install iproute2 iputils-ping dnsutils curl openssl
+```
+
+NetworkManager, Wi-Fi, Tailscale and Pi-hole features require their corresponding
+tools or services. Missing tools are reported in the UI; basic local monitoring
+works without root. Do not install multiple NEXUS copies unless you intend to
+manage their PATH order (`command -v nexus` shows the selected executable).
 
 *Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png)*
 
