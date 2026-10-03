@@ -1,0 +1,25 @@
+theme = "dark"
+refresh_seconds = 2
+external_enabled = false
+monitoring_enabled = false
+targets = ["1.1.1.1", "8.8.8.8"]
+public_ip_url = "https://api.ipify.org"
+internet_url = "https://example.com"
+dns_test_name = "example.com"
+retention_samples = 1800
+
+# Optional: include your chosen DoT endpoint in the full diagnostic sequence.
+# dot_server = "1.1.1.1"
+# dot_tls_name = "cloudflare-dns.com"
+
+# Optional Pi-hole v6 endpoint. No credential is saved; connect from Ctrl+K.
+# pihole_url = "https://pi.hole"
+
+# Optional theme overrides use #RRGGBB.
+[custom_colors]
+# accent = "#45DAC8"
+# background = "#141920"
+# panel = "#131A28"
+# foreground = "#E2EAF8"
+# muted = "#7F92AC"
+# border = "#2B394E"

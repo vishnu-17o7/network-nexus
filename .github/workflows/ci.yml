@@ -1,0 +1,27 @@
+name: Check and package
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt, clippy
+      - name: Install diagnostic test backends
+        run: sudo apt-get update && sudo apt-get install -y curl openssl iproute2 iputils-ping dnsutils
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo build --locked --release
+      - run: python3 tests/terminal_smoke.py target/release/nexus
+      - run: python3 tests/responsiveness.py target/release/nexus
+      - run: python3 scripts/package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexus-linux-amd64
+          path: dist/*

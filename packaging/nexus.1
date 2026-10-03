@@ -1,0 +1,37 @@
+.TH NEXUS 1 "October 2026" "NEXUS 0.3.0" "User Commands"
+.SH NAME
+nexus \- terminal-native Linux network control center
+.SH SYNOPSIS
+.B nexus
+.RI [ options ]
+.SH DESCRIPTION
+NEXUS inspects interfaces, sockets, routes, DNS and bandwidth in a full-screen
+terminal. Press d for diagnostics or Ctrl+K for the command palette.
+External tests require explicit consent. Network configuration changes are
+previewed and confirmed before execution.
+.SH OPTIONS
+.TP
+.B --doctor
+List available optional system tools.
+.TP
+.B --snapshot
+Print a local network snapshot as JSON without external requests.
+.TP
+.BI --report " PATH"
+Write a redacted local report. Use a .txt suffix for text output.
+.TP
+.B --include-sensitive
+Include private endpoints and process information in a report.
+.TP
+.B --fresh
+Ignore saved history and do not persist session settings or history.
+.TP
+.BI --theme " NAME"
+Use dark, oled, catppuccin, tokyo-night, gruvbox or light.
+.SH FILES
+.I ~/.config/nexus-net/config.toml
+.br
+.I ~/.local/share/nexus-net/history.json
+.SH KEYS
+Ctrl+K commands; d diagnose; Tab next page; j/k move; Enter inspect;
+/ filter; ? help; x cancel a diagnostic; q exit.

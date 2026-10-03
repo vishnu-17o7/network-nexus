@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=NEXUS Network Control Center
+Comment=Inspect and troubleshoot Linux networking
+Exec=nexus
+Icon=network-workgroup
+Terminal=true
+Categories=Network;System;
+Keywords=DNS;TLS;WiFi;Network;Diagnostics;

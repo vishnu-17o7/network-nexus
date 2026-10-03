@@ -1,0 +1,68 @@
+# Validation evidence
+
+Verified in a Linux x86_64 / Ubuntu 24.04 execution environment using Rust 1.88.0,
+Ratatui 0.29, Crossterm 0.28 and the committed Cargo lockfile. The source
+dependency graph requires Rust 1.88 or newer.
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --check` | Pass |
+| `cargo clippy --locked --all-targets -- -D warnings` | Pass |
+| `cargo test --locked` | 46 tests pass |
+| `cargo build --release --locked` | Optimized executable builds |
+| Actual executable in a PTY | Pass: page navigation, detail overlay, palette, MTU form cancellation, theme, local refresh, help, 40×12 / 60×48 / 80×24 / 200×48 resize, masked Pi-hole form cancellation, exit |
+| Background responsiveness | Help opens within 600 ms during a stalled local HTTP request; cancellation restores control |
+| Terminal restoration | Alternate screen exited; canonical input and echo restored after quit |
+| Temporary session | `--fresh` does not overwrite persistent history/settings |
+| `--doctor` | Lists actual present/missing backend binaries |
+| `--snapshot` | Reads actual sysfs/procfs interface and socket state |
+| `--report PATH` | Valid JSON; interfaces/MACs/endpoints/process metadata redacted |
+| Live local HTTP server | Sends HEAD, records actual status/timing, distinguishes 404 from an outage, redacts cookie and API-key headers |
+| Live local TCP / UDP servers | Connect/response behavior verified using loopback sockets |
+| UI render coverage | 17 pages × 6 themes × 9 terminal sizes plus overlays; no panics |
+| Actual dark/light dashboard | Rendered from real local snapshots and visually reviewed |
+| DNS-over-TLS | Local native TLS server: verified A response, SERVFAIL, hostname mismatch and untrusted CA |
+| Debian release | Metadata, ownership/modes, extracted executable and package dependencies checked |
+| Tokscale-inspired previews | Real widgets with labeled documentation fixtures; overview, DoT finding, HTTP 404 and animated progress |
+| Pi-hole v6 | Local mock API: authentication/header SID, normalized summary/history, logout cleanup, redirect refusal, 401 secrecy, preview-only preparation, timed pause, revert and changed-state protection |
+| Tailscale | Structured JSON fixtures cover direct/DERP, exit node and unknown peer state; actual daemon/tailnet unavailable in this environment, so no real peer or routing change is claimed |
+| Line charts | Missing/invalid values split segments; traffic has separate RX/TX with elapsed time/rate units; latency uses actual probe indices rather than assuming exact request cadence |
+| Safety behavior | Esc from change preview produces no apply action; invalid MTU/interface/route deletion rejected; untrusted host/options rejected |
+| History and rate math | Newest samples retained; counter reset produces no overflow rate; packet loss stays separate from successful-reply latency/jitter |
+| Private atomic save | New file mode 0600; existing parent-directory mode is preserved |
+
+The PTY test is reproducible:
+
+```bash
+python3 tests/terminal_smoke.py target/release/nexus
+```
+
+The preview is reproducible on a Linux machine with Pillow and DejaVu fonts:
+
+```bash
+nexus --fresh --render buffer.json
+python3 docs/render_preview.py buffer.json dashboard.png
+```
+
+## Limits of these checks
+
+This environment denies netlink sockets. That exposed and verified the native
+getifaddrs/ioctl/procfs fallback. It does not represent a normal Linux desktop's
+complete network state; unavailable default routes/addresses remain visibly
+unavailable rather than being fabricated. Loopback, sockets, counters and
+capability checks were exercised with real data.
+
+No machine interfaces, DNS settings, routes, firewall, Wi-Fi credentials or
+NetworkManager profiles were changed during verification. Preview generation
+and validation are tested; applying these settings on a real desktop is still
+hardware/backend/authorization dependent. Wi-Fi connection, NetworkManager
+reapply, PolicyKit dialogs, driver survey, WireGuard/Tailscale, real
+Docker/Podman engines, provider speed tests and broad desktop compatibility were
+not available for end-to-end verification here. External speed/geo services were
+not contacted merely to populate the preview.
+
+The included prebuilt executable targets x86_64 Linux and imports glibc 2.39
+symbols. Older distributions and other CPU/libc combinations should compile
+the source locally. The binary is not a universal Windows/macOS application.
+
+See [FEATURES.md](FEATURES.md) for implemented behavior and support boundaries.
