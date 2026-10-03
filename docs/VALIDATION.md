@@ -8,7 +8,7 @@ dependency graph requires Rust 1.88 or newer.
 | --- | --- |
 | `cargo fmt --check` | Pass |
 | `cargo clippy --locked --all-targets -- -D warnings` | Pass |
-| `cargo test --locked` | 46 tests pass |
+| `cargo test --locked` | 54 tests pass |
 | `cargo build --release --locked` | Optimized executable builds |
 | Actual executable in a PTY | Pass: page navigation, detail overlay, palette, MTU form cancellation, theme, local refresh, help, 40×12 / 60×48 / 80×24 / 200×48 resize, masked Pi-hole form cancellation, exit |
 | Background responsiveness | Help opens within 600 ms during a stalled local HTTP request; cancellation restores control |
@@ -26,7 +26,9 @@ dependency graph requires Rust 1.88 or newer.
 | Tokscale-inspired previews | Real widgets with labeled documentation fixtures; overview, DoT finding, HTTP 404 and animated progress |
 | Pi-hole v6 | Local mock API: authentication/header SID, normalized summary/history, logout cleanup, redirect refusal, 401 secrecy, preview-only preparation, timed pause, revert and changed-state protection |
 | Tailscale | Structured JSON fixtures cover direct/DERP, exit node and unknown peer state; actual daemon/tailnet unavailable in this environment, so no real peer or routing change is claimed |
-| Line charts | Missing/invalid values split segments; traffic has separate RX/TX with elapsed time/rate units; latency uses actual probe indices rather than assuming exact request cadence |
+| Line charts | Shape-preserving cubic interpolation retains measured endpoints and stays within adjacent values; missing/invalid values and long sampling gaps split segments; traffic uses binary rate units and 1/5/15-minute ranges; latency uses probe indices, visible-window p95/loss and 30/90/300-probe ranges |
+| Graphics transport in PTY | PNG payloads, chunk boundaries, cell dimensions, unchanged-frame cache, freeze, popup removal/restoration, resize, range control, owned-image deletion, text fallback and terminal restoration pass |
+| Smooth previews | Actual renderer PNG layers and SVG paths generated from labeled fixtures; dark/light, 80×24, 60×48 and 200×48 layouts visually reviewed |
 | Safety behavior | Esc from change preview produces no apply action; invalid MTU/interface/route deletion rejected; untrusted host/options rejected |
 | History and rate math | Newest samples retained; counter reset produces no overflow rate; packet loss stays separate from successful-reply latency/jitter |
 | Private atomic save | New file mode 0600; existing parent-directory mode is preserved |
@@ -35,16 +37,24 @@ The PTY test is reproducible:
 
 ```bash
 python3 tests/terminal_smoke.py target/release/nexus
+python3 tests/responsiveness.py target/release/nexus
+python3 tests/graphics_pty.py target/release/nexus
 ```
 
 The preview is reproducible on a Linux machine with Pillow and DejaVu fonts:
 
 ```bash
-nexus --fresh --render buffer.json
+nexus --fresh --chart-renderer kitty --render buffer.json
 python3 docs/render_preview.py buffer.json dashboard.png
 ```
 
 ## Limits of these checks
+
+The graphics PTY test validates application output and lifecycle, not a real Kitty
+or Ghostty compositor. Smooth screenshots combine the actual widget buffer and
+PNG renderer layer. Live terminal emulator rendering, remote SSH transport and
+font/DPI behavior still need testing on the target desktop. Unknown terminals
+and tmux/screen use the portable text renderer.
 
 This environment denies netlink sockets. That exposed and verified the native
 getifaddrs/ioctl/procfs fallback. It does not represent a normal Linux desktop's
@@ -61,7 +71,7 @@ Docker/Podman engines, provider speed tests and broad desktop compatibility were
 not available for end-to-end verification here. External speed/geo services were
 not contacted merely to populate the preview.
 
-The included prebuilt executable targets x86_64 Linux and imports glibc 2.39
+The release prebuilt executable targets x86_64 Linux and imports glibc 2.39
 symbols. Older distributions and other CPU/libc combinations should compile
 the source locally. The binary is not a universal Windows/macOS application.
 

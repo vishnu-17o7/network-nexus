@@ -24,9 +24,13 @@ fn render(path: &Path, app: &App, width: u16, height: u16) {
             cells.push(json!({"x":x,"y":y,"symbol":c.symbol(),"fg":format!("{:?}",c.fg),"bg":format!("{:?}",c.bg),"bold":c.modifier.contains(ratatui::style::Modifier::BOLD)}));
         }
     }
+    let graphics = app.graphics.borrow().preview_assets(path).unwrap();
     std::fs::write(
         path,
-        serde_json::to_vec(&json!({"width":width,"height":height,"cells":cells})).unwrap(),
+        serde_json::to_vec(
+            &json!({"width":width,"height":height,"cells":cells,"graphics":graphics}),
+        )
+        .unwrap(),
     )
     .unwrap();
 }
@@ -35,6 +39,7 @@ fn main() {
     let dir = Path::new(&output);
     std::fs::create_dir_all(dir).unwrap();
     let mut app = App::new(Config::default(), History::default());
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Preview;
     app.started = Instant::now() - Duration::from_secs(2);
     app.notification = "PREVIEW FIXTURE · example data, not a live network measurement".into();
     app.snapshot = Snapshot {
@@ -122,6 +127,16 @@ fn main() {
     render(&dir.join("overview-compact.json"), &app, 80, 24);
     render(&dir.join("overview-tall.json"), &app, 60, 48);
     render(&dir.join("overview-wide.json"), &app, 200, 48);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Text;
+    render(&dir.join("overview-text.json"), &app, 140, 42);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Preview;
+    app.config.theme = "light".into();
+    render(&dir.join("overview-light.json"), &app, 140, 42);
+    app.config.theme = "dark".into();
+    app.dispatch("chart-pause");
+    render(&dir.join("overview-paused.json"), &app, 140, 42);
+    app.dispatch("chart-pause");
+    app.notification = "PREVIEW FIXTURE · example data, not a live network measurement".into();
     app.page = Page::Tools;
     render(&dir.join("diagnostics.json"), &app, 140, 36);
     app.selected = 1;

@@ -1,6 +1,8 @@
-# Included executable
+# Original archive executable
 
-`nexus` is an optimized Linux x86_64 executable built from the included source.
+The original v0.3.0 project ZIP included `bin/nexus`; the root `SHA256SUMS` verifies that archived executable. It is not the current development build. New binaries and matching asset checksums are published at https://github.com/vishnu-17o7/network-nexus/releases. The release tarball puts `nexus` at its root.
+
+The archived `nexus` is an optimized Linux x86_64 executable.
 It requires glibc 2.39 or newer. It does not need Rust installed to run.
 
 From the extracted project directory:

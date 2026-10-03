@@ -2,6 +2,7 @@
 import json
 import re
 import sys
+from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 buffer = json.load(open(sys.argv[1]))
@@ -22,4 +23,12 @@ for cell in buffer["cells"]:
     x, y = margin + cell["x"] * cell_w, margin + cell["y"] * cell_h
     draw.rectangle((x, y, x + cell_w - 1, y + cell_h - 1), fill=color(cell["bg"], (13, 18, 29)))
     draw.text((x, y + 1), cell["symbol"], font=fallback if any(0x2800 <= ord(c) <= 0x28FF for c in cell["symbol"]) else (bold if cell["bold"] else regular), fill=color(cell["fg"], (226, 234, 248)))
+for graphic in buffer.get("graphics", []):
+    asset = Path(sys.argv[1]).parent / graphic["path"]
+    overlay = Image.open(asset).convert("RGB")
+    left = round(margin + graphic["x"] * cell_w)
+    top = margin + graphic["y"] * cell_h
+    right = round(margin + (graphic["x"] + graphic["width"]) * cell_w)
+    overlay = overlay.resize((right - left, graphic["height"] * cell_h), Image.Resampling.LANCZOS)
+    image.paste(overlay, (left, top))
 image.save(sys.argv[2])

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Render antialiased, shape-preserving vector curves through Kitty terminal graphics, with a portable curved Braille fallback. Curves retain every measured point and leave gaps for failed replies and pauses.
+- Redesign the dashboard around live metric cards, larger charts, compact findings and network context; refine dark/light colors and compact/tall layouts.
+- Add Space to freeze graphs while collection continues, and [ / ] for 1/5/15-minute traffic windows and 30/90/300-probe latency windows.
+- Add traffic peak, visible-window p95/packet loss, rounded axes and stale-snapshot indication.
+- Cache unchanged chart images, resize to terminal cell dimensions, remove overlays before popups and restore the terminal on exit.
+- Add PNG/SVG chart assets to headless renders and regression coverage for curve bounds, data gaps, freeze, graphics transport, modal cleanup and resize.
+
 ## 0.3.0
 
 - Replace block traffic bars and latency dots with Braille line plots, labeled axes, separate RX/TX, automatic rate units and explicit missing-reply gaps.

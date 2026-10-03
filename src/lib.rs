@@ -6,6 +6,7 @@ pub mod config;
 pub mod control;
 pub mod diagnosis;
 pub mod dot;
+pub mod graphics;
 pub mod integrations;
 pub mod model;
 pub mod tools;

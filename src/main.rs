@@ -61,6 +61,9 @@ struct Cli {
     /// Temporary session: ignore saved history and do not write settings/history
     #[arg(long)]
     fresh: bool,
+    /// Graph renderer: auto-detect Kitty/compatible terminals, force Kitty, or portable text
+    #[arg(long, value_parser = ["auto", "kitty", "text"])]
+    chart_renderer: Option<String>,
 }
 
 enum Message {
@@ -75,9 +78,12 @@ enum Message {
     Wifi(u64, Vec<WifiNetwork>),
     Notice(String),
 }
-struct TerminalGuard;
+struct TerminalGuard(bool);
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
+        if self.0 {
+            let _ = nexus_net::graphics::cleanup(&mut io::stderr());
+        }
         let _ = disable_raw_mode();
         let _ = execute!(io::stderr(), DisableMouseCapture, LeaveAlternateScreen);
     }
@@ -92,12 +98,20 @@ async fn main() -> Result<()> {
     if let Some(theme) = cli.theme {
         config.theme = theme;
     }
+    if let Some(renderer) = cli.chart_renderer {
+        config.chart_renderer = renderer;
+    }
     let history = if cli.fresh {
         History::default()
     } else {
         storage.load_history()?
     };
     let mut app = App::new(config, history);
+    let graphics_mode = nexus_net::graphics::Mode::detect(&app.config.chart_renderer);
+    app.graphics.borrow_mut().mode = graphics_mode;
+    if cli.render.is_some() && app.config.chart_renderer == "kitty" {
+        app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Preview;
+    }
     if cli.doctor {
         println!("NEXUS {} · Linux capabilities", env!("CARGO_PKG_VERSION"));
         for c in backend::linux::capabilities() {
@@ -139,12 +153,15 @@ async fn main() -> Result<()> {
     // Restore the terminal before showing a panic or returning on any error.
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
+        if graphics_mode == nexus_net::graphics::Mode::Kitty {
+            let _ = nexus_net::graphics::cleanup(&mut io::stderr());
+        }
         let _ = disable_raw_mode();
         let _ = execute!(io::stderr(), DisableMouseCapture, LeaveAlternateScreen);
         previous(info);
     }));
     enable_raw_mode()?;
-    let _guard = TerminalGuard;
+    let mut terminal_guard = TerminalGuard(graphics_mode == nexus_net::graphics::Mode::Kitty);
     execute!(io::stderr(), EnterAlternateScreen, EnableMouseCapture)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stderr()))?;
     terminal.clear()?;
@@ -160,7 +177,17 @@ async fn main() -> Result<()> {
     let mut task_id = 0u64;
     let mut save_tick = 0;
     loop {
+        if let Ok(size) = crossterm::terminal::window_size() {
+            app.graphics.borrow_mut().set_cell_size(
+                size.width,
+                size.height,
+                size.columns,
+                size.rows,
+            );
+        }
         terminal.draw(|f| ui::draw(f, &app))?;
+        terminal_guard.0 |= app.graphics.borrow().mode == nexus_net::graphics::Mode::Kitty;
+        app.graphics.borrow_mut().flush(&mut io::stderr())?;
         let mut effect = Effect::None;
         tokio::select! {
             _=ticks.tick()=>{app.tick+=1;save_tick+=1;if save_tick>=900{save_tick=0;effect=Effect::Save;}
@@ -509,10 +536,11 @@ fn render_buffer(path: &std::path::Path, app: &App, width: u16, height: u16) -> 
             cells.push(json!({"x":x,"y":y,"symbol":c.symbol(),"fg":format!("{:?}",c.fg),"bg":format!("{:?}",c.bg),"bold":c.modifier.contains(ratatui::style::Modifier::BOLD)}));
         }
     }
+    let graphics = app.graphics.borrow().preview_assets(path)?;
     private_atomic(
         path,
         &serde_json::to_vec(
-            &json!({"width":buffer.area.width,"height":buffer.area.height,"cells":cells}),
+            &json!({"width":buffer.area.width,"height":buffer.area.height,"cells":cells,"graphics":graphics}),
         )?,
     )
 }

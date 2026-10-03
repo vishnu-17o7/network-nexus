@@ -15,7 +15,7 @@ It installs `nexus`, a manual page and a terminal desktop launcher. It does not
 start a service or change network settings.
 
 ```bash
-sudo apt install ./nexus-net_0.3.0_amd64.deb
+sudo apt install ./nexus-net_0.4.0_amd64.deb
 nexus
 ```
 
@@ -34,19 +34,38 @@ cargo install --locked --path .
 nexus
 ```
 
-The downloadable package also contains `bin/nexus`, built for **Linux x86_64,
+The release `.tar.gz` contains `nexus` at its root, built for **Linux x86_64,
 glibc 2.39 or newer**. On older distributions, ARM machines or musl systems,
 build from source instead. The app does not need root to open or monitor local
 state. Recommended terminal size: 110 × 32; compact monitoring layouts work from 40 × 12.
 Configuration confirmation requires at least 80 × 24 so values can be reviewed.
 
-![Network overview](docs/overview-preview.png)
-
-*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png)*
+*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png)*
 
 ## First session
 
-The Tokscale-inspired interface uses cyan tabs, focused lists and real line charts. Download and upload have separate traces with elapsed-time axes and automatic rate units. Latency uses probe numbers and breaks lines for missing replies. Narrow terminals prioritize columns (Enter shows all fields), and tall narrow dashboards stack the plots. A 30 FPS render loop keeps keyboard input and animated task progress responsive; network sampling is separate.
+The Tokscale-inspired dashboard puts live metrics and smooth charts first, with findings and network context below. Download and upload have separate traces; latency retains real spikes and gaps for missing replies. Narrow terminals prioritize columns (Enter shows all fields), and tall dashboards stack the plots. A 30 FPS event loop keeps input and progress responsive; measurements update independently.
+
+### Smooth graphs
+
+On **Kitty or a compatible terminal advertising Kitty graphics support**, NEXUS draws antialiased vector paths, rasterizes them to the current terminal cell dimensions and transmits compressed PNGs. Auto mode recognizes `xterm-kitty`, `xterm-ghostty` and Ghostty's `TERM_PROGRAM`. Other terminals and tmux/screen use curved Braille lines. Terminal cells cannot display true pixel-level curves without a graphics protocol.
+
+```bash
+nexus --chart-renderer auto   # default: known graphics terminals, otherwise text
+nexus --chart-renderer kitty  # explicit compatible-terminal override
+nexus --chart-renderer text   # portable mode, including SSH / multiplexers
+```
+
+SSH can carry the image protocol when the remote session advertises the compatible terminal; tmux/screen deliberately use text. `Ctrl+K → Toggle smooth / text graphs` switches the renderer. No terminal queries or external requests are required for detection.
+
+- **Space** freezes the graphs while collection, current metric cards and diagnostics continue. Space resumes.
+- **[ / ]** selects **1 / 5 / 15 minutes** of traffic, or **30 / 90 / 300 probes** of latency. The axes are relative to the latest captured sample. Unrecorded time stays empty.
+- Traffic shows the visible peak. Latency shows **p95** (nearest rank) and loss for the visible probe window; the metric card's loss is session-wide.
+- Curves are display interpolation between measurements, bounded by adjacent measured values. They do not average away spikes, modify statistics or bridge missing replies. Long traffic sampling gaps break the line.
+- Images are encoded only when measurements, theme, range or dimensions change. Popups, page changes, resizing and exit remove the app's image overlays. Text mode sends no image commands.
+- A **STALE** header appears if no local snapshot arrives for more than three refresh intervals.
+
+![Portable text graph fallback](docs/overview-text.png)
 
 The default is local-only. Interfaces, counters, local sockets, resolver
 configuration, routes and neighbor tables are read without contacting an
@@ -217,7 +236,9 @@ src/tools.rs          Async diagnostic services and backend result normalization
 src/control.rs        Validated prepare/confirm/apply/revert plans
 src/config.rs         XDG configuration, local history and atomic private saves
 src/app.rs            Central state, actions, forms, palette, search and events
-src/ui.rs             Ratatui layout, tables, graphs, modals and themes
+src/charts.rs         Time windows, summaries, gap handling and chart layout
+src/graphics.rs       Bounded cubic paths, PNG/SVG rendering and Kitty transport
+src/ui.rs             Ratatui layout, tables, modals and themes
 src/main.rs           Tokio event loop, worker cancellation and terminal cleanup
 ```
 
@@ -254,7 +275,7 @@ HTTP checks use `internet_url`. Checks run after explicit consent.
 ## Render and package
 
 The images in `docs/*-preview.png` and `loading-preview.gif` render the actual
-Ratatui widgets with clearly labeled example data. `docs/dashboard.png` renders
+Ratatui widgets with clearly labeled example data. Smooth previews composite the exact PNG chart layer emitted by the graphics renderer; they are not mockups. The source vector paths are also saved as SVG alongside each preview buffer. `docs/dashboard.png` renders
 this execution environment's live snapshot. It has restricted network visibility
 and is not a snapshot of your computer.
 
@@ -262,6 +283,7 @@ and is not a snapshot of your computer.
 cargo run --locked --example render_previews -- preview-buffers
 python3 docs/render_preview.py preview-buffers/overview.json overview.png
 cargo build --locked --release
+python3 tests/graphics_pty.py target/release/nexus
 python3 scripts/package.py
 ```
 

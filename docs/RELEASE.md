@@ -1,11 +1,13 @@
-# NEXUS 0.3.0 release
+# NEXUS 0.4.0 release
+
+Smooth charts use Kitty-compatible terminal graphics; other terminals fall back to portable text. Space freezes graph history, [ / ] changes the traffic/probe range, and collection continues. See README for renderer selection and support boundaries.
 
 The release includes a Linux amd64 `.deb`, a binary archive, source and checksums.
 The prebuilt executable requires glibc 2.39 or newer. Ubuntu 24.04+ is compatible;
 older systems and other architectures should build from source.
 
 ```bash
-sudo apt install ./nexus-net_0.3.0_amd64.deb
+sudo apt install ./nexus-net_0.4.0_amd64.deb
 nexus
 ```
 
@@ -23,8 +25,8 @@ The GitHub workflows run formatting, tests, Clippy, release build, PTY and
 blocked-I/O responsiveness checks. The release workflow builds assets and creates
 a GitHub release for a pushed `v*` tag or a main-branch commit that changes Cargo.toml. Main-branch publishing skips an existing version rather than replacing its assets. A manual run only creates downloadable workflow artifacts.
 
-The included source archive contains `nexus-net.bundle`, a local Git history
-bundle. To recover that history:
+The included source archive contains `nexus-net.bundle`, the original v0.2.0/v0.3.0 Git history
+bundle. Current development history is tracked in GitHub. To recover that history:
 
 ```bash
 git clone nexus-net.bundle nexus-net

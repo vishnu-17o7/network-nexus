@@ -8,6 +8,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 #[serde(default)]
 pub struct Config {
     pub theme: String,
+    pub chart_renderer: String,
     pub refresh_seconds: u64,
     pub external_enabled: bool,
     pub monitoring_enabled: bool,
@@ -25,6 +26,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             theme: "dark".into(),
+            chart_renderer: "auto".into(),
             refresh_seconds: 2,
             external_enabled: false,
             monitoring_enabled: false,

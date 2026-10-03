@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='nexus-package-') as tmp:
     shutil.copy2(root / 'README.md', doc / 'README.md')
     shutil.copy2(root / 'LICENSE', doc / 'copyright')
     shutil.copy2(root / 'config.example.toml', doc / 'config.example.toml')
-    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Line charts, responsive layouts, Tailscale and Pi-hole v6 integration.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
+    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Smooth graph rendering, clearer dashboard, graph inspection and network integrations.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
     (doc / 'changelog.gz').write_bytes(gzip.compress(changelog.encode(), mtime=0))
     man = stage / 'usr/share/man/man1'; man.mkdir(parents=True)
     (man / 'nexus.1.gz').write_bytes(gzip.compress((root / 'packaging/nexus.1').read_bytes(), mtime=0))

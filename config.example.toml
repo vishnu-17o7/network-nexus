@@ -1,4 +1,7 @@
 theme = "dark"
+# auto: Kitty/compatible terminals use smooth curves; other terminals use text.
+# tmux/screen always use text. Set text to disable graphics.
+chart_renderer = "auto"
 refresh_seconds = 2
 external_enabled = false
 monitoring_enabled = false

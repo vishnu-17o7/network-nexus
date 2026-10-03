@@ -6,7 +6,7 @@ use crate::{
 };
 use chrono::Utc;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::{collections::BTreeMap, time::Instant};
+use std::{cell::RefCell, collections::BTreeMap, time::Instant};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
@@ -477,6 +477,21 @@ pub fn actions() -> Vec<Action> {
             "Compare last two traceroutes",
             "Same target · detects responder changes",
         ),
+        (
+            "chart-pause",
+            "Pause / resume graphs",
+            "Space · collection continues",
+        ),
+        (
+            "chart-range",
+            "Change graph range",
+            "] · 1 / 5 / 15 min; 30 / 90 / 300 probes",
+        ),
+        (
+            "chart-renderer",
+            "Toggle smooth / text graphs",
+            "Kitty graphics or portable text",
+        ),
         ("help", "Keyboard help", "?"),
     ] {
         a.push(Action {
@@ -515,6 +530,9 @@ pub struct App {
     pub connection_filter: u8,
     pub sort: usize,
     pub paused: bool,
+    pub chart_window: usize,
+    pub chart_snapshot: Option<crate::charts::Snapshot>,
+    pub graphics: RefCell<crate::graphics::Graphics>,
     pub last_public_ip: Option<String>,
     pub internet: Option<bool>,
     pub dns_ms: Option<f64>,
@@ -559,6 +577,9 @@ impl App {
             connection_filter: 0,
             sort: 0,
             paused: false,
+            chart_window: 1,
+            chart_snapshot: None,
+            graphics: RefCell::new(crate::graphics::Graphics::new(crate::graphics::Mode::Text)),
             last_public_ip: None,
             internet: None,
             dns_ms: None,
@@ -959,6 +980,9 @@ impl App {
             "profile-apply"|"profile-delete"=>self.form(id,"Saved profile",vec![("Exact profile name",self.history.profiles.first().map(|p|p.name.clone()).unwrap_or_default(),false)],"DNS + MTU profiles in this release."),
             "monitor-target"=>self.form(id,"Add latency target",vec![("Host","1.1.1.1".into(),false)],"External targets are probed only when external access is enabled."),
             "monitor"=>{if !self.snapshot.has("ping")&&!self.config.monitoring_enabled{self.notice("Install iputils-ping before enabling ICMP monitoring");return Effect::None;}self.config.monitoring_enabled = !self.config.monitoring_enabled;self.notice(if self.config.monitoring_enabled{"Monitoring enabled; gateway only until external access is enabled"}else{"Monitoring paused"});return Effect::Save;},
+            "chart-pause"=>{self.chart_snapshot=if self.chart_snapshot.is_some(){None}else{Some(crate::charts::Snapshot::capture(self))};self.notice(if self.chart_snapshot.is_some(){"Graphs frozen · network collection continues · Space resumes"}else{"Graphs live"});},
+            "chart-range"=>{self.chart_window=(self.chart_window+1)%3;self.notice(format!("Graph range: {} · [ / ] changes range",crate::charts::range_label(self)));},
+            "chart-renderer"=>{let enabled=self.graphics.borrow().enabled();self.config.chart_renderer=if enabled{"text"}else{"kitty"}.into();self.graphics.borrow_mut().mode=crate::graphics::Mode::detect(&self.config.chart_renderer);self.notice(if self.graphics.borrow().enabled(){"Smooth graphs · requires Kitty-compatible terminal graphics"}else{"Portable text graphs · tmux/screen use this renderer"});return Effect::Save;},
             "theme"=>{let themes=["dark","oled","catppuccin","tokyo-night","gruvbox","light"];let n=themes.iter().position(|t|*t==self.config.theme).unwrap_or(0);self.config.theme=themes[(n+1)%themes.len()].into();self.notice(format!("Theme: {}",self.config.theme));return Effect::Save;},
             "external"=>{if self.config.external_enabled{self.config.external_enabled=false;self.internet=None;self.notice("External access disabled; cancel a running task with x");return Effect::Save;}self.modal=Some(Modal::ExternalConsent);},
             "revert"=>{if let Some(p)=self.last_plan.as_ref().and_then(Plan::revert){self.modal=Some(Modal::ConfirmPlan(p));}else{self.notice("No reversible network change this session");}},
@@ -1378,6 +1402,12 @@ impl App {
                     Page::Pihole => self.dispatch("pihole-refresh"),
                     _ => Effect::Refresh,
                 }
+            }
+            KeyCode::Char(' ') => return self.dispatch("chart-pause"),
+            KeyCode::Char(']') => return self.dispatch("chart-range"),
+            KeyCode::Char('[') => {
+                self.chart_window = (self.chart_window + 1) % 3;
+                return self.dispatch("chart-range");
             }
             KeyCode::Char('d') => return self.dispatch("diagnostics"),
             KeyCode::Char('m') => return self.dispatch("monitor"),

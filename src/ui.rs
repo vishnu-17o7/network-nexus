@@ -81,12 +81,12 @@ impl Theme {
                 violet: Color::Rgb(112, 74, 168),
             },
             _ => Self {
-                bg: Color::Rgb(20, 25, 32),
-                panel: Color::Rgb(20, 25, 32),
+                bg: Color::Rgb(13, 18, 26),
+                panel: Color::Rgb(18, 25, 35),
                 fg: Color::Rgb(226, 232, 240),
                 muted: Color::Rgb(133, 144, 157),
-                border: Color::Rgb(54, 66, 80),
-                accent: Color::Rgb(0, 220, 230),
+                border: Color::Rgb(43, 56, 72),
+                accent: Color::Rgb(80, 216, 215),
                 good: Color::Rgb(126, 218, 151),
                 warn: Color::Rgb(244, 193, 112),
                 bad: Color::Rgb(247, 126, 145),
@@ -138,11 +138,31 @@ fn block<'a>(title: impl Into<Line<'a>>, t: Theme) -> Block<'a> {
         .style(Style::default().bg(t.panel).fg(t.fg))
         .padding(Padding::horizontal(1))
 }
+fn fit_text(value: &str, width: u16) -> String {
+    if Line::from(value).width() <= width as usize {
+        return value.into();
+    }
+    let mut result = String::new();
+    let mut used = 0;
+    for c in value.chars() {
+        let w = Span::raw(c.to_string()).width();
+        if used + w + 1 > width as usize {
+            break;
+        }
+        result.push(c);
+        used += w;
+    }
+    if width > 0 {
+        result.push('…');
+    }
+    result
+}
 fn label<'a>(value: impl Into<std::borrow::Cow<'a, str>>, color: Color) -> Span<'a> {
     Span::styled(value, Style::default().fg(color))
 }
 
 pub fn draw(frame: &mut Frame, app: &App) {
+    app.graphics.borrow_mut().begin_frame();
     let t = Theme::from_app(app);
     let area = frame.area();
     frame.render_widget(
@@ -173,11 +193,14 @@ pub fn draw(frame: &mut Frame, app: &App) {
 }
 
 fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    let tab_width = if area.width >= 85 {
-        area.width.saturating_sub(20)
+    let brand_width = if area.width >= 85 {
+        20
+    } else if area.width >= 60 {
+        9
     } else {
-        area.width
+        0
     };
+    let tab_width = area.width.saturating_sub(brand_width);
     let labels = if area.width < 60 {
         ["Home", "Test", "View", "Live", "Set"]
     } else if area.width >= 95 {
@@ -211,7 +234,14 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("NEXUS", Style::default().fg(t.accent).bold()),
-            label(format!("  v{}", env!("CARGO_PKG_VERSION")), t.muted),
+            label(
+                if brand_width >= 20 {
+                    format!("  v{}", env!("CARGO_PKG_VERSION"))
+                } else {
+                    String::new()
+                },
+                t.muted,
+            ),
         ]))
         .alignment(Alignment::Right),
         Rect::new(area.x + tab_width, area.y, area.width - tab_width, 1),
@@ -221,6 +251,8 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         "PAUSED"
     } else if a.busy.is_some() {
         "WORKING"
+    } else if a.last_snapshot.elapsed().as_secs() > a.config.refresh_seconds.saturating_mul(3) {
+        "STALE"
     } else {
         "LIVE"
     };
@@ -231,7 +263,11 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
                     " {} {state}  ",
                     if a.busy.is_some() { spinner } else { "●" }
                 ),
-                t.accent,
+                if state == "STALE" || state == "PAUSED" {
+                    t.warn
+                } else {
+                    t.accent
+                },
             ),
             label(a.page.title(), t.fg),
             label(
@@ -294,11 +330,28 @@ fn footer(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         }
         progress.push(label("  ", t.muted));
     }
-    progress.push(label(message, t.accent));
-    let keys = if area.width < 85 {
+    if a.chart_snapshot.is_some() && a.busy.is_none() {
+        progress.push(label(
+            "GRAPHS PAUSED · collection continues · Space resumes",
+            t.warn,
+        ));
+    } else {
+        progress.push(label(message, t.accent));
+    }
+    let range_page = matches!(a.page, Page::Dashboard | Page::Bandwidth | Page::Latency);
+    let chart_page = range_page || matches!(a.page, Page::Pihole | Page::History);
+    let keys = if range_page && area.width >= 110 {
+        " Space freeze graphs   [ ] range   d diagnose   Ctrl+K actions   Tab page   ? help   q quit"
+    } else if range_page && area.width >= 60 {
+        " Space freeze · [ ] range · Ctrl+K actions · ? · q"
+    } else if chart_page && area.width >= 110 {
+        " Space freeze graphs   Ctrl+K actions   Enter details   Tab page   r refresh   ? help   q quit"
+    } else if chart_page && area.width >= 60 {
+        " Space freeze · Ctrl+K actions · r refresh · ? · q"
+    } else if area.width < 85 {
         " Ctrl+K actions · Tab page · Enter · ? · q"
     } else {
-        " d diagnose   Ctrl+K actions   j/k move   Enter details   Tab page   r refresh   ? help   q quit"
+        " Ctrl+K actions   / filter   j/k move   Enter details   Tab page   r refresh   ? help   q quit"
     };
     f.render_widget(
         Paragraph::new(vec![Line::from(progress), Line::from(label(keys, t.muted))]),
@@ -315,22 +368,39 @@ fn severity_color(level: crate::diagnosis::Severity, t: Theme) -> Color {
         Pass => t.good,
     }
 }
+fn surface<'a>(title: impl Into<Line<'a>>, t: Theme) -> Block<'a> {
+    Block::default()
+        .title(title)
+        .title_style(Style::default().fg(t.fg).bold())
+        .borders(Borders::TOP)
+        .border_style(Style::default().fg(t.border))
+        .padding(Padding::new(1, 1, 1, 0))
+        .style(Style::default().bg(t.panel).fg(t.fg))
+}
+fn metric(
+    f: &mut Frame,
+    area: Rect,
+    t: Theme,
+    title: &str,
+    value: String,
+    caption: String,
+    color: Color,
+) {
+    f.render_widget(Block::default().style(Style::default().bg(t.panel)), area);
+    let inside = area.inner(Margin::new(1, 0));
+    if inside.height == 0 {
+        return;
+    }
+    let mut lines = vec![
+        Line::from(label(title, t.muted)),
+        Line::from(Span::styled(value, Style::default().fg(color).bold())),
+    ];
+    if inside.height >= 4 && inside.width >= 23 {
+        lines.push(Line::from(label(caption, t.muted)));
+    }
+    f.render_widget(Paragraph::new(lines), inside);
+}
 fn dashboard(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    let compact = area.height < 26;
-    let sections = Layout::vertical([
-        Constraint::Length(4),
-        Constraint::Min(3),
-        Constraint::Length(if area.height < 18 {
-            0
-        } else if area.width < 100 && area.height >= 36 {
-            22
-        } else if area.height >= 32 {
-            13
-        } else {
-            9
-        }),
-    ])
-    .split(area);
     let iface = a.snapshot.primary_interface();
     let (rx, tx, _, _) = a.snapshot.traffic_totals();
     let tested = a.assessment.as_ref().and_then(|r| {
@@ -343,115 +413,202 @@ fn dashboard(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         Some(false) => "ICMP probes failed".into(),
         None => "Internet not tested".into(),
     });
-    let summary = vec![
-        Line::from(vec![
-            Span::styled(status, Style::default().fg(t.accent).bold()),
-            label("   ·   ", t.border),
-            label(
-                iface
-                    .map(|i| format!("{} / {} / {}", i.name, i.kind, i.state))
-                    .unwrap_or_else(|| "No default interface".into()),
-                t.muted,
-            ),
-        ]),
-        Line::from(vec![
-            label(format!("↓ {}   ↑ {}", rate(rx), rate(tx)), t.fg),
-            label(
-                format!(
-                    "   ·   {} latency   ·   {} sockets",
-                    ms(a.internet_probe().and_then(|p| p.last)),
-                    a.snapshot.connections.len()
-                ),
-                t.muted,
-            ),
-        ]),
-    ];
+    let compact = area.height < 16;
+    let summary_height = if area.height >= 28 { 2 } else { 1 };
+    let metrics_height = if compact {
+        2
+    } else if area.height >= 28 {
+        4
+    } else {
+        3
+    };
+    let graph_height = if compact {
+        0
+    } else if area.width < 100 && area.height >= 36 {
+        (area.height - 18).clamp(20, 30)
+    } else {
+        (area.height / 2).clamp(8, 22)
+    };
+    let sections = Layout::vertical([
+        Constraint::Length(summary_height),
+        Constraint::Length(metrics_height),
+        Constraint::Length(graph_height),
+        Constraint::Min(3),
+    ])
+    .split(area);
+    let device = iface
+        .map(|i| format!("{} · {} / {}", i.name, i.kind, i.state))
+        .unwrap_or_else(|| "No default interface".into());
     f.render_widget(
-        Paragraph::new(summary).block(block(" Connection ", t)),
+        Paragraph::new(Line::from(vec![
+            label(
+                " ● ",
+                if a.internet == Some(false) {
+                    t.warn
+                } else {
+                    t.accent
+                },
+            ),
+            Span::styled(status, Style::default().fg(t.fg).bold()),
+            label(format!("    {device}"), t.muted),
+        ])),
         sections[0],
     );
-    let body = if area.width >= 78 {
-        Layout::horizontal([Constraint::Percentage(65), Constraint::Percentage(35)])
-            .split(sections[1])
-            .to_vec()
+    if compact {
+        f.render_widget(
+            Paragraph::new(Line::from(vec![
+                label(format!(" ↓ {}  ", rate(rx)), t.accent),
+                label(format!("↑ {}", rate(tx)), t.violet),
+            ])),
+            sections[1],
+        );
     } else {
-        vec![sections[1]]
-    };
-    findings_panel(f, a, body[0], t);
-    if let Some(details) = body.get(1) {
-        let listeners = a
-            .snapshot
-            .connections
-            .iter()
-            .filter(|c| c.listening())
-            .count();
+        let cards = Layout::horizontal([Constraint::Percentage(25); 4])
+            .spacing(1)
+            .split(sections[1]);
+        let probe = a.internet_probe();
+        metric(
+            f,
+            cards[0],
+            t,
+            "DOWNLOAD",
+            rate(rx),
+            if a.paused {
+                "snapshot paused"
+            } else {
+                "live interface rate"
+            }
+            .into(),
+            t.accent,
+        );
+        metric(
+            f,
+            cards[1],
+            t,
+            "UPLOAD",
+            rate(tx),
+            if a.paused {
+                "snapshot paused"
+            } else {
+                "live interface rate"
+            }
+            .into(),
+            t.violet,
+        );
+        metric(
+            f,
+            cards[2],
+            t,
+            "INTERNET RTT",
+            ms(probe.and_then(|p| p.last)),
+            probe
+                .filter(|p| p.sent > 0)
+                .map(|p| format!("{:.1}% loss · session", p.loss()))
+                .unwrap_or_else(|| "m starts probes".into()),
+            t.fg,
+        );
+        metric(
+            f,
+            cards[3],
+            t,
+            "DNS RESPONSE",
+            ms(a.dns_ms),
+            "last resolver probe".into(),
+            if a.dns_ms.is_some_and(|v| v > 250.) {
+                t.warn
+            } else {
+                t.fg
+            },
+        );
+    }
+    if graph_height > 0 {
+        if area.width >= 100 {
+            let charts =
+                Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
+                    .spacing(2)
+                    .split(sections[2]);
+            traffic(f, a, charts[0], t);
+            latency_chart(f, a, charts[1], t);
+        } else if graph_height >= 20 {
+            let charts = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .spacing(1)
+                .split(sections[2]);
+            traffic(f, a, charts[0], t);
+            latency_chart(f, a, charts[1], t);
+        } else {
+            traffic(f, a, sections[2], t);
+        }
+    }
+    let context = sections[3];
+    if area.width >= 100 && context.height >= 7 {
+        let parts = Layout::horizontal([Constraint::Percentage(63), Constraint::Percentage(37)])
+            .spacing(2)
+            .split(context);
+        findings_panel(f, a, parts[0], t);
         let mut lines = vec![
-            Line::from(label("IP addresses", t.muted)),
-            Line::from(label(
-                iface
-                    .map(|i| i.addresses.join(" · "))
-                    .unwrap_or_else(|| "Unavailable".into()),
-                t.fg,
-            )),
-            Line::from(""),
-            Line::from(label("Gateway", t.muted)),
-            Line::from(label(a.snapshot.gateway().unwrap_or("Unavailable"), t.fg)),
-            Line::from(""),
-            Line::from(label("DNS resolvers", t.muted)),
-            Line::from(label(a.snapshot.dns.join(" · "), t.fg)),
-            Line::from(label(
-                format!("{} · {}", a.snapshot.dns_source, ms(a.dns_ms)),
-                t.muted,
-            )),
-            Line::from(""),
-            Line::from(label(
-                format!(
-                    "{listeners} listeners · {} VPN/tunnel links",
-                    a.snapshot.vpn_interfaces().len()
+            Line::from(vec![label("Interface  ", t.muted), label(device, t.fg)]),
+            Line::from(vec![
+                label("Address    ", t.muted),
+                label(
+                    iface
+                        .map(|i| i.addresses.join(" · "))
+                        .filter(|v| !v.is_empty())
+                        .unwrap_or_else(|| "Unavailable".into()),
+                    t.fg,
                 ),
-                t.fg,
-            )),
+            ]),
+            Line::from(vec![
+                label("Gateway    ", t.muted),
+                label(a.snapshot.gateway().unwrap_or("Unavailable"), t.fg),
+            ]),
+            Line::from(vec![
+                label("Resolvers  ", t.muted),
+                label(
+                    if a.snapshot.dns.is_empty() {
+                        "Unavailable".into()
+                    } else {
+                        a.snapshot.dns.join(" · ")
+                    },
+                    t.fg,
+                ),
+            ]),
         ];
-        if !compact {
+        if context.height >= 9 {
             lines.extend([
                 Line::from(""),
-                Line::from(label("Public IP", t.muted)),
                 Line::from(label(
-                    a.last_public_ip
-                        .as_deref()
-                        .unwrap_or("Not requested · Ctrl+K"),
-                    t.fg,
+                    format!(
+                        "{} sockets  ·  {} listeners  ·  {} tunnels",
+                        a.snapshot.connections.len(),
+                        a.snapshot
+                            .connections
+                            .iter()
+                            .filter(|c| c.listening())
+                            .count(),
+                        a.snapshot.vpn_interfaces().len()
+                    ),
+                    t.muted,
                 )),
             ]);
-            if let Some(w) = a.wifi.iter().find(|w| w.connected) {
-                lines.push(Line::from(label(
-                    format!("Wi-Fi {} · {}%", w.ssid, w.signal),
-                    t.fg,
-                )));
-            }
+        }
+        if context.height >= 12 {
+            lines.push(Line::from(vec![
+                label("Public IP  ", t.muted),
+                label(a.last_public_ip.as_deref().unwrap_or("not requested"), t.fg),
+            ]));
+            lines.push(Line::from(label(
+                "Ctrl+K opens interfaces, DNS and VPN tools",
+                t.accent,
+            )));
         }
         f.render_widget(
             Paragraph::new(lines)
                 .wrap(Wrap { trim: false })
-                .block(block(" This device ", t)),
-            *details,
+                .block(surface(" NETWORK ", t)),
+            parts[1],
         );
-    }
-    if sections[2].height > 0 {
-        if area.width >= 100 {
-            let graphs =
-                Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
-                    .split(sections[2]);
-            traffic(f, a, graphs[0], t);
-            latency_chart(f, a, graphs[1], t);
-        } else if sections[2].height >= 20 {
-            let graphs = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(sections[2]);
-            traffic(f, a, graphs[0], t);
-            latency_chart(f, a, graphs[1], t);
-        } else {
-            traffic(f, a, sections[2], t);
-        }
+    } else {
+        findings_panel(f, a, context, t);
     }
 }
 fn findings_panel(f: &mut Frame, a: &App, area: Rect, t: Theme) {
@@ -465,7 +622,7 @@ fn findings_panel(f: &mut Frame, a: &App, area: Rect, t: Theme) {
             )
         })
         .count();
-    let b = block(format!(" Findings · {bad} to check "), t);
+    let b = surface(format!(" FINDINGS · {bad} to check "), t);
     let inner = b.inner(area);
     f.render_widget(b, area);
     let rows = inner.height.saturating_sub(1).max(1) as usize / 3;
@@ -488,7 +645,10 @@ fn findings_panel(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         f.render_widget(
             Paragraph::new(vec![
                 line,
-                Line::from(label(format!("  {}", finding.next_step), t.muted)),
+                Line::from(label(
+                    fit_text(&format!("  {}", finding.next_step), inner.width),
+                    t.muted,
+                )),
             ])
             .wrap(Wrap { trim: false }),
             Rect::new(inner.x, y, inner.width, 2.min(inner.bottom() - y)),
@@ -1091,7 +1251,7 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
             f.render_widget(Paragraph::new(vec![Line::from(Span::styled("Enable external service access?",Style::default().fg(t.fg).bold())),Line::from(""),Line::from("Configured latency targets and DNS test names may be probed when live monitoring is on. Tools can contact their displayed endpoints without a per-test consent dialog."),Line::from(""),Line::from("Public-IP and speed tests remain explicit actions. No automatic geolocation or telemetry."),Line::from(""),Line::from(label("This setting is saved locally. e disables it.",t.muted)),Line::from(""),Line::from(label("Enter enable · Esc remain local-only",t.accent))]).block(block(" EXTERNAL ACCESS ",t)).wrap(Wrap{trim:false}),area);
         }
         Modal::Help => {
-            let text="KEYBOARD\n\nCtrl+K        Fuzzy command palette: every feature and control\nTab / h l     Next / previous page\n1–9           First nine pages\nj k / ↑ ↓     Move selection\ng G / Home End   First / last row\nPageUp/Down   Move ten rows\nEnter         Inspect selected row\n/             Filter current table\nS             Global search\ns             Sort by first / second column\nf             Socket filter: All / Established / Listening / External\nr             Refresh local snapshot\nm             Toggle latency monitoring\ne             Enable/disable external access\np             Pause snapshot display\nt             Cycle six themes\nu             Preview revert of last network change\nc             Copy selected row using wl-copy/xclip\nE             Export redacted JSON report\nx             Cancel diagnostic task (changes finish or time out)\nEsc           Close overlay / clear filter\nq / Ctrl+C    Quit and restore terminal";
+            let text="KEYBOARD\n\nCtrl+K        Fuzzy command palette: every feature and control\nTab / h l     Next / previous page\n1–9           First nine pages\nj k / ↑ ↓     Move selection\ng G / Home End   First / last row\nPageUp/Down   Move ten rows\nEnter         Inspect selected row\n/             Filter current table\nS             Global search\ns             Sort by first / second column\nf             Socket filter: All / Established / Listening / External\nr             Refresh local snapshot\nm             Toggle latency monitoring\ne             Enable/disable external access\nSpace         Freeze graphs; collection continues\n[ / ]         Graph range: 1 / 5 / 15 min; 30 / 90 / 300 probes\np             Pause snapshot display\nt             Cycle six themes\nu             Preview revert of last network change\nc             Copy selected row using wl-copy/xclip\nE             Export redacted JSON report\nx             Cancel diagnostic task (changes finish or time out)\nEsc           Close overlay / clear filter\nq / Ctrl+C    Quit and restore terminal";
             f.render_widget(
                 Paragraph::new(text)
                     .style(Style::default().fg(t.fg))
@@ -1163,7 +1323,7 @@ mod tests {
         assert!(
             text.contains("TRAFFIC")
                 && text.contains("LATENCY")
-                && text.contains("KB/s")
+                && text.contains("KiB/s")
                 && text.contains("latest")
         );
         let traces: Vec<_> = buffer
