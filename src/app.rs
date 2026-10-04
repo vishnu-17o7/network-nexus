@@ -63,7 +63,7 @@ impl Page {
             Self::Tools => "Diagnostics / tools",
             Self::Events => "Event timeline",
             Self::History => "History",
-            Self::Profiles => "Profiles",
+            Self::Profiles => "Preferences / profiles",
             Self::System => "System / capabilities",
             Self::Tailscale => "Tailscale",
             Self::Pihole => "Pi-hole",
@@ -71,6 +71,57 @@ impl Page {
     }
     pub fn index(self) -> usize {
         Self::ALL.iter().position(|p| *p == self).unwrap_or(0)
+    }
+    pub fn section_pages(self) -> &'static [Page] {
+        match self {
+            Self::Dashboard => &[Self::Dashboard],
+            Self::Tools => &[Self::Tools],
+            Self::Bandwidth | Self::Latency | Self::Events | Self::History => {
+                &[Self::Bandwidth, Self::Latency, Self::Events, Self::History]
+            }
+            Self::Profiles | Self::System => &[Self::Profiles, Self::System],
+            _ => &[
+                Self::Interfaces,
+                Self::Wifi,
+                Self::Dns,
+                Self::Connections,
+                Self::Ports,
+                Self::Routes,
+                Self::Neighbors,
+                Self::Tailscale,
+                Self::Pihole,
+            ],
+        }
+    }
+    pub fn short_title(self) -> &'static str {
+        match self {
+            Self::Interfaces => "Links",
+            Self::Connections => "Sockets",
+            Self::Ports => "Ports",
+            Self::Neighbors => "LAN",
+            Self::Tools => "Tests",
+            Self::Profiles => "Preferences",
+            Self::System => "Backends",
+            Self::Events => "Events",
+            _ => self.title(),
+        }
+    }
+    pub fn primary_action(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Wifi => ("wifi-scan", "Scan Wi-Fi"),
+            Self::Dns => ("dns-lookup", "DNS lookup"),
+            Self::Latency => ("monitor", "Toggle monitoring"),
+            Self::Connections | Self::Ports => ("tcp", "Test host / port"),
+            Self::Bandwidth | Self::History => ("iperf-quick", "Test bandwidth"),
+            Self::Routes => ("route-rules", "Inspect routing rules"),
+            Self::Neighbors => ("lan", "Discover LAN"),
+            Self::Tools | Self::Dashboard => ("diagnostics", "Run diagnostics"),
+            Self::Events => ("export", "Export report"),
+            Self::Profiles => ("profile-save", "Save profile"),
+            Self::Tailscale => ("tailscale-status", "Refresh tailnet"),
+            Self::Pihole => ("pihole-refresh", "Connect / refresh"),
+            _ => ("refresh", "Refresh local state"),
+        }
     }
 }
 
@@ -489,7 +540,7 @@ pub fn actions() -> Vec<Action> {
         ),
         (
             "chart-renderer",
-            "Toggle smooth / text graphs",
+            "Toggle pixel / text graphs",
             "Kitty graphics or portable text",
         ),
         ("help", "Keyboard help", "?"),
@@ -881,21 +932,19 @@ impl App {
     }
     fn iface(&self) -> String {
         if self.page == Page::Interfaces {
-            self.filtered_interface_names()
-                .get(self.selected)
-                .cloned()
-                .unwrap_or_default()
+            self.selected_field(Page::Interfaces, 0).unwrap_or_default()
         } else {
             self.snapshot.primary.clone().unwrap_or_default()
         }
     }
-    fn filtered_interface_names(&self) -> Vec<String> {
-        self.snapshot
-            .interfaces
-            .iter()
-            .filter(|i| self.matches(&format!("{} {} {}", i.name, i.kind, i.addresses.join(" "))))
-            .map(|i| i.name.clone())
-            .collect()
+    fn selected_field(&self, page: Page, column: usize) -> Option<String> {
+        if self.page != page {
+            return None;
+        }
+        let (_, rows) = self.rows();
+        rows.get(self.selected.min(rows.len().saturating_sub(1)))
+            .and_then(|r| r.get(column))
+            .cloned()
     }
     fn form(&mut self, id: &str, title: &str, fields: Vec<(&str, String, bool)>, note: &str) {
         self.modal = Some(Modal::Form(Form {
@@ -930,7 +979,7 @@ impl App {
         let host = "example.com".to_string();
         match id {
             "tailscale-status" => return self.request_tool(Tool::Tailscale),
-            "tailscale-ping" => self.form(id,"Tailscale path test",vec![("Peer hostname / Tailscale IP",self.tailscale_result.as_ref().and_then(|r|r.tailscale.as_ref()).and_then(|t|t.peers.get(self.selected)).and_then(|p|p.ips.first()).cloned().unwrap_or_default(),false)],"Three explicit discovery pings. Direct and DERP paths are reported."),
+            "tailscale-ping" => self.form(id,"Tailscale path test",vec![("Peer hostname / Tailscale IP",self.selected_field(Page::Tailscale,0).and_then(|name| self.tailscale_result.as_ref().and_then(|r|r.tailscale.as_ref()).and_then(|t|t.peers.iter().find(|p|p.name==name)).and_then(|p|p.ips.first()).cloned()).unwrap_or_default(),false)],"Three explicit discovery pings. Direct and DERP paths are reported."),
             "tailscale-netcheck" => return self.request_tool(Tool::TailscaleNetcheck),
             "tailscale-dns" => self.form(id,"Tailscale DNS preference",vec![("Accept tailnet DNS? yes/no","yes".into(),false)],"Reads current preferences before preview. Changes only accept-dns; operator/root access required."),
             "tailscale-exit" => self.form(id,"Tailscale exit node",vec![("Advertised exit-node IP (blank disables)",String::new(),false)],"Only an exit-node address from the current tailnet is accepted. Preview and undo capture the current node."),
@@ -958,7 +1007,7 @@ impl App {
             "wifi-scan"=>return self.request_tool(Tool::Wifi{rescan:true}),"wifi-saved"=>return self.request_tool(Tool::WifiSaved),
             "wifi-connect"=>{
                 let wifi=self.snapshot.interfaces.iter().find(|i|i.kind=="Wi-Fi").map(|i|i.name.clone()).unwrap_or_default();
-                let ssid=self.wifi.get(self.selected).map(|n|n.ssid.clone()).unwrap_or_default();
+                let ssid=self.selected_field(Page::Wifi,0).unwrap_or_default();
                 self.form(id,"Connect Wi-Fi",vec![("Wi-Fi interface",wifi,false),("SSID",ssid,false),("Password (blank = open)",String::new(),true),("Hidden? yes/no","no".into(),false)],"WPA personal/open only. Password is not saved, logged or placed in process arguments. Preview follows.");
             },
             "wifi-disconnect"=>{let wifi=self.snapshot.interfaces.iter().find(|i|i.kind=="Wi-Fi").map(|i|i.name.clone()).unwrap_or_default();return Effect::Prepare(Change::WifiDisconnect{interface:wifi});},
@@ -977,7 +1026,7 @@ impl App {
             "vpn"=>return self.request_tool(Tool::Vpn),"firewall"=>return self.request_tool(Tool::Firewall),"containers"=>return self.request_tool(Tool::Containers),"namespaces"=>return self.request_tool(Tool::Namespaces{name:String::new()}),"proxy"=>return self.request_tool(Tool::Proxy),
             "namespace-inspect"=>self.form(id,"Inspect namespace",vec![("Existing namespace name",String::new(),false)],"Use List network namespaces first."),
             "profile-save"=>self.form(id,"Save network profile",vec![("Name","Home".into(),false),("Interface",iface,false)],"Capture current per-link DNS and MTU. No Wi-Fi secrets are read."),
-            "profile-apply"|"profile-delete"=>self.form(id,"Saved profile",vec![("Exact profile name",self.history.profiles.first().map(|p|p.name.clone()).unwrap_or_default(),false)],"DNS + MTU profiles in this release."),
+            "profile-apply"|"profile-delete"=>self.form(id,"Saved profile",vec![("Exact profile name",self.selected_field(Page::Profiles,0).unwrap_or_default(),false)],"DNS + MTU profiles in this release."),
             "monitor-target"=>self.form(id,"Add latency target",vec![("Host","1.1.1.1".into(),false)],"External targets are probed only when external access is enabled."),
             "monitor"=>{if !self.snapshot.has("ping")&&!self.config.monitoring_enabled{self.notice("Install iputils-ping before enabling ICMP monitoring");return Effect::None;}self.config.monitoring_enabled = !self.config.monitoring_enabled;self.notice(if self.config.monitoring_enabled{"Monitoring enabled; gateway only until external access is enabled"}else{"Monitoring paused"});return Effect::Save;},
             "chart-pause"=>{self.chart_snapshot=if self.chart_snapshot.is_some(){None}else{Some(crate::charts::Snapshot::capture(self))};self.notice(if self.chart_snapshot.is_some(){"Graphs frozen · network collection continues · Space resumes"}else{"Graphs live"});},
@@ -1328,6 +1377,23 @@ impl App {
             return Effect::None;
         }
         match key.code {
+            KeyCode::Char(',') | KeyCode::Char('.') => {
+                let pages = self.page.section_pages();
+                let index = pages.iter().position(|p| *p == self.page).unwrap_or(0);
+                let delta = if key.code == KeyCode::Char('.') {
+                    1
+                } else {
+                    pages.len() - 1
+                };
+                self.navigate(pages[(index + delta) % pages.len()]);
+            }
+            KeyCode::Char('a') => return self.dispatch(self.page.primary_action().0),
+            KeyCode::Char('b') if self.page == Page::Tools => {
+                self.result = None;
+                self.selected = 0;
+                self.filter.clear();
+                self.sort = 0;
+            }
             KeyCode::Char('q') => {
                 if self.mutating {
                     self.notice("Configuration in progress; wait for completion before exit");
@@ -1841,7 +1907,27 @@ impl App {
                     .unwrap_or_else(|| {
                         actions()
                             .into_iter()
-                            .filter(|a| !a.id.starts_with("page:"))
+                            .filter(|a| {
+                                matches!(
+                                    a.id,
+                                    "diagnostics"
+                                        | "ping"
+                                        | "dns-lookup"
+                                        | "dns-compare"
+                                        | "dot"
+                                        | "http"
+                                        | "tls"
+                                        | "tcp"
+                                        | "udp"
+                                        | "trace"
+                                        | "mtr"
+                                        | "iperf-quick"
+                                        | "http-families"
+                                        | "wifi-survey"
+                                        | "lan"
+                                        | "namespace-inspect"
+                                )
+                            })
                             .map(|a| vec![a.name, a.hint.into()])
                             .collect()
                     }),
@@ -2056,5 +2142,81 @@ mod tests {
         let mut a = App::new(Config::default(), History::default());
         assert!(matches!(a.request_tool(Tool::PublicIp), Effect::None));
         assert!(matches!(a.modal, Some(Modal::ConfirmTool(_))));
+    }
+    #[test]
+    fn workbench_shortcuts_navigate_and_keep_consent() {
+        let mut a = App::new(Config::default(), History::default());
+        for page in Page::ALL {
+            assert!(actions()
+                .iter()
+                .any(|action| action.id == page.primary_action().0));
+        }
+        a.navigate(Page::Interfaces);
+        a.key(KeyEvent::new(KeyCode::Char('.'), KeyModifiers::NONE));
+        assert_eq!(a.page, Page::Wifi);
+        a.key(KeyEvent::new(KeyCode::Char(','), KeyModifiers::NONE));
+        assert_eq!(a.page, Page::Interfaces);
+        a.navigate(Page::Tools);
+        a.key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
+        assert!(matches!(a.modal, Some(Modal::ConfirmTool(_))));
+        a.modal = None;
+        a.result = Some(ToolResult::default());
+        a.key(KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE));
+        assert!(a.result.is_none());
+        assert!(!a.rows().1.is_empty());
+    }
+    #[test]
+    fn action_defaults_follow_the_visible_selection() {
+        let mut a = App::new(Config::default(), History::default());
+        a.snapshot.interfaces = vec![
+            Interface {
+                name: "wlan0".into(),
+                ..Default::default()
+            },
+            Interface {
+                name: "eth0".into(),
+                ..Default::default()
+            },
+        ];
+        a.navigate(Page::Interfaces);
+        a.sort = 1;
+        assert_eq!(a.iface(), "eth0");
+        a.filter = "wlan0".into();
+        assert_eq!(a.iface(), "wlan0");
+        a.navigate(Page::Wifi);
+        a.wifi = vec![
+            WifiNetwork {
+                ssid: "Studio".into(),
+                ..Default::default()
+            },
+            WifiNetwork {
+                ssid: "Guest".into(),
+                ..Default::default()
+            },
+        ];
+        a.filter = "Guest".into();
+        a.dispatch("wifi-connect");
+        let Some(Modal::Form(form)) = &a.modal else {
+            panic!("missing Wi-Fi form")
+        };
+        assert_eq!(form.fields[1].value, "Guest");
+        a.modal = None;
+        a.navigate(Page::Profiles);
+        a.history.profiles = vec![
+            SavedProfile {
+                name: "Studio".into(),
+                ..Default::default()
+            },
+            SavedProfile {
+                name: "Direct".into(),
+                ..Default::default()
+            },
+        ];
+        a.filter = "Direct".into();
+        a.dispatch("profile-apply");
+        let Some(Modal::Form(form)) = &a.modal else {
+            panic!("missing profile form")
+        };
+        assert_eq!(form.fields[0].value, "Direct");
     }
 }

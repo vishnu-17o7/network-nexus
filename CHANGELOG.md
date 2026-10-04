@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.4.2
+## 0.5.0
+
+- Redesign secondary pages around inspection, diagnostics, monitoring, services and preferences while retaining the overview layout.
+- Add visible secondary navigation, comma/period section shortcuts, clickable tabs and a page-specific `a` action.
+- Replace equal-width generic tables with task-specific columns, visible selection details and actionable empty states.
+- Give diagnostics a focused test catalog and `b` return shortcut; prioritize next steps on short terminals.
+- Expose actual app controls alongside saved profiles; retain visible profile rows at 80×24.
+- Add stable ordered-dither fills to pixel, SVG and portable Braille graphs, with clear traces and genuine data gaps. Chart the selected latency target, including frozen history.
+- Match interface, Wi-Fi, profile and Tailscale action defaults to the filtered/sorted visible selection.
+- Improve muted/status text contrast in built-in themes and keep selected table text legible.
+
+The pending 0.4.2 background patch is included in this release; no intermediate 0.4.2 release was published.
+
 
 - Remove dark background seams between metric cards, charts and findings by painting one continuous main content surface.
 - Match service summaries and empty states to the same surface across all six themes and custom colors.

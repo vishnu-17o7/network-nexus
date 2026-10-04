@@ -1,6 +1,6 @@
 //! Honest time series: shape-preserving curves, visible gaps, unchanged measurements.
 use crate::{
-    app::App,
+    app::{App, Page},
     graphics::{self, Plot},
     model::{Probe, Sample, ToolResult},
     ui::Theme,
@@ -23,6 +23,7 @@ pub struct Series {
 pub struct Snapshot {
     pub samples: Vec<Sample>,
     pub probe: Option<Probe>,
+    pub probes: std::collections::BTreeMap<String, Probe>,
     pub tests: Vec<ToolResult>,
     pub pihole: Vec<crate::integrations::PiholePoint>,
     pub primary: String,
@@ -32,6 +33,7 @@ impl Snapshot {
         Self {
             samples: a.history.samples.clone(),
             probe: a.internet_probe().cloned(),
+            probes: a.probes.clone(),
             tests: a.history.tests.clone(),
             pihole: a
                 .pihole_result
@@ -267,6 +269,20 @@ fn plot(f: &mut Frame, a: &App, area: Rect, t: Theme, c: Chart<'_>, series: &[Se
                 .y_bounds([0.0, maximum])
                 .paint(|ctx| {
                     for (color, points) in &curves {
+                        let dots = crate::dither::points(
+                            points,
+                            domain,
+                            maximum,
+                            graph.width.saturating_mul(2),
+                            graph.height.saturating_mul(4),
+                        );
+                        ctx.draw(&Points {
+                            coords: &dots,
+                            color: crate::dither::shade(*color, t.panel),
+                        });
+                    }
+                    ctx.layer();
+                    for (color, points) in &curves {
                         for p in points.windows(2) {
                             ctx.draw(&CanvasLine {
                                 x1: p[0].0,
@@ -373,7 +389,22 @@ pub fn traffic(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     );
 }
 pub fn latency(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    let probe = if let Some(s) = &a.chart_snapshot {
+    let target = if a.page == Page::Latency {
+        let (_, rows) = a.rows();
+        rows.get(a.selected.min(rows.len().saturating_sub(1)))
+            .and_then(|r| r.first())
+            .cloned()
+    } else {
+        None
+    };
+    let probe = if a.page == Page::Latency {
+        let probes = a
+            .chart_snapshot
+            .as_ref()
+            .map(|s| &s.probes)
+            .unwrap_or(&a.probes);
+        target.as_ref().and_then(|target| probes.get(target))
+    } else if let Some(s) = &a.chart_snapshot {
         s.probe.as_ref()
     } else {
         a.internet_probe()
@@ -607,5 +638,35 @@ mod tests {
         assert!(!a.paused);
         a.dispatch("chart-pause");
         assert!(a.chart_snapshot.is_none());
+    }
+    #[test]
+    fn latency_selection_uses_the_selected_frozen_target() {
+        let mut a = App::new(
+            crate::config::Config::default(),
+            crate::config::History::default(),
+        );
+        a.page = Page::Latency;
+        a.graphics.borrow_mut().mode = graphics::Mode::Preview;
+        for (target, value) in [("192.0.2.1", 2.0), ("1.1.1.1", 20.0)] {
+            let mut probe = Probe {
+                target: target.into(),
+                ..Default::default()
+            };
+            probe.record(Some(value));
+            probe.record(Some(value));
+            a.probes.insert(target.into(), probe);
+        }
+        a.dispatch("chart-pause");
+        a.probes.get_mut("192.0.2.1").unwrap().record(Some(200.0));
+        a.filter = "192.0.2.1".into();
+        let mut terminal = Terminal::new(ratatui::backend::TestBackend::new(140, 42)).unwrap();
+        terminal.draw(|f| crate::ui::draw(f, &a)).unwrap();
+        let graphics = a.graphics.borrow();
+        let plot = graphics.requests.get(&2).unwrap();
+        assert!(plot.series[0]
+            .segments
+            .iter()
+            .flatten()
+            .all(|(_, y)| *y == 2.0));
     }
 }

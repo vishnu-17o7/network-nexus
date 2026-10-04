@@ -1,6 +1,27 @@
 # Validation evidence
 
-## v0.4.2 background regression
+## v0.5.0 workbench review
+
+- 62 Rust tests pass locally, including ordered-fill bounds/gaps, selected frozen latency targets, section navigation/click targets, filtered/sorted action defaults and continuous backgrounds.
+- Formatting and Clippy pass with Rust 1.88 and the locked dependency graph.
+- All three local PTY suites pass: section navigation and contextual forms, terminal restoration, help/cancellation during stalled HTTP, graphics payload/cache/freeze, modal cleanup, resize and portable fallback.
+- 106 actual widget-buffer previews cover all 17 pages at 140×42, 80×24 and 60×48; empty states, filtering, light mode, portable text, paused graphs and service views are included.
+- Visual review corrected compact settings that hid saved rows, diagnostics that hid next steps, misleading range hints, low-contrast selected text and service context lost in the initial refactor.
+- Hallmark's applicable hierarchy, restraint, token, honest-data and responsive checks were reviewed. Native terminal constraints replace CSS/font/hover/marketing-hero gates. The overview and established product identity are intentionally retained.
+- Scores (1–5): philosophy 4, hierarchy 4, execution 4, specificity 5, restraint 4, variety 4. Long values can truncate in lists; Enter retains access to the complete record. The terminal controls its font and pixel compositor.
+
+Generate the same review set with:
+
+```bash
+cargo run --locked --example render_previews -- target/ui-previews
+python3 docs/render_gallery.py target/ui-previews target/ui-screenshots
+```
+
+The release workflow must pass the native amd64/ARM64 build and exact-package installation/PTY gates before publishing. See [GitHub Actions](https://github.com/vishnu-17o7/network-nexus/actions) for the final run and artifacts.
+
+## Background regression (included in v0.5.0)
+
+The [pre-release CI run](https://github.com/vishnu-17o7/network-nexus/actions/runs/37126268480) passed on Ubuntu 22.04 amd64/ARM64 and Ubuntu 24.04 amd64: 55 Rust tests, formatting, Clippy, optimized builds, all three PTY suites and Debian package installation. The generated dark/light, compact/tall, smooth/text and unmeasured screenshots were visually reviewed; the exported overview buffers and chart raster corners have a matching background.
 
 The widget-buffer checks require every main-content cell to use the panel surface, allowing the intentional selected-row highlight on table pages. Coverage includes all 17 pages, six themes and terminal sizes from 40×12 to 240×80.
 

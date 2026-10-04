@@ -39,12 +39,18 @@ with tempfile.TemporaryDirectory(prefix="nexus-pty-") as data:
     try:
         drain(1.2)
         send(b"2")              # Interfaces page
+        send(b".")              # Secondary navigation: Wi-Fi
+        send(b",")              # Back to interfaces
         send(b"\r")            # Details overlay
         send(b"\x1b")          # Close details
         send(b"\x0b")          # Ctrl+K palette
         send(b"Set interface MTU")
         send(b"\r")            # Open form only
         send(b"\x1b")          # Cancel; no configuration is submitted
+        send(b"4")              # DNS
+        send(b"a")              # Page-specific lookup form
+        send(b"\x1b")          # Cancel; no query is sent
+        send(b"2")
         send(b"t")              # Theme switch
         send(b"r", 0.5)        # Local refresh; page should remain Interfaces
         send(b"?")              # Help overlay

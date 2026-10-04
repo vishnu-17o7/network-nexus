@@ -3,6 +3,8 @@ use crate::{
     model::{ms, rate},
 };
 use ratatui::{prelude::*, widgets::*};
+mod pages;
+pub use pages::subtab_hit as clicked_subtab;
 
 #[derive(Clone, Copy)]
 pub struct Theme {
@@ -48,7 +50,7 @@ impl Theme {
                 bg: Color::Rgb(26, 27, 38),
                 panel: Color::Rgb(31, 33, 47),
                 fg: Color::Rgb(192, 202, 245),
-                muted: Color::Rgb(86, 95, 137),
+                muted: Color::Rgb(137, 147, 180),
                 border: Color::Rgb(52, 59, 88),
                 accent: Color::Rgb(125, 207, 255),
                 good: Color::Rgb(158, 206, 106),
@@ -65,7 +67,7 @@ impl Theme {
                 accent: Color::Rgb(131, 165, 152),
                 good: Color::Rgb(184, 187, 38),
                 warn: Color::Rgb(250, 189, 47),
-                bad: Color::Rgb(251, 73, 52),
+                bad: Color::Rgb(251, 110, 94),
                 violet: Color::Rgb(211, 134, 155),
             },
             "light" => Self {
@@ -76,7 +78,7 @@ impl Theme {
                 border: Color::Rgb(208, 217, 230),
                 accent: Color::Rgb(0, 116, 143),
                 good: Color::Rgb(24, 128, 82),
-                warn: Color::Rgb(163, 109, 0),
+                warn: Color::Rgb(158, 104, 0),
                 bad: Color::Rgb(190, 45, 68),
                 violet: Color::Rgb(112, 74, 168),
             },
@@ -186,7 +188,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     if app.page == Page::Dashboard {
         dashboard(frame, app, main, t);
     } else {
-        page(frame, app, main, t);
+        pages::draw(frame, app, main, t);
     }
     footer(frame, app, layout[2], t);
     if let Some(modal) = &app.modal {
@@ -342,7 +344,13 @@ fn footer(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     }
     let range_page = matches!(a.page, Page::Dashboard | Page::Bandwidth | Page::Latency);
     let chart_page = range_page || matches!(a.page, Page::Pihole | Page::History);
-    let keys = if range_page && area.width >= 110 {
+    let keys = if a.page == Page::Tools && a.result.is_none() {
+        " j/k select · Enter run test · / filter · Ctrl+K all actions · ? help · q quit"
+    } else if a.page != Page::Dashboard && area.width >= 110 {
+        " , . section   a action   / filter   j/k select   Enter details   Ctrl+K all actions   ? help   q quit"
+    } else if a.page != Page::Dashboard {
+        " , . section · a action · Enter details · Ctrl+K · ? · q"
+    } else if range_page && area.width >= 110 {
         " Space freeze graphs   [ ] range   d diagnose   Ctrl+K actions   Tab page   ? help   q quit"
     } else if range_page && area.width >= 60 {
         " Space freeze · [ ] range · Ctrl+K actions · ? · q"
@@ -676,384 +684,6 @@ fn traffic(f: &mut Frame, a: &App, area: Rect, t: Theme) {
 fn latency_chart(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     crate::charts::latency(f, a, area, t);
 }
-fn speed_chart(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    crate::charts::speed(f, a, area, t);
-}
-fn description(page: Page) -> &'static str {
-    match page {
-        Page::Interfaces=>"Live sysfs counters · Enter details · Ctrl+K changes DNS, MTU, DHCP and link state",
-        Page::Wifi=>"Ctrl+K → Scan Wi-Fi / Connect / Saved profiles / Radio / Airtime survey",
-        Page::Dns=>"Active and per-link resolvers · Ctrl+K → Lookup, Compare, Presets, Automatic DNS, Flush",
-        Page::Latency=>"m starts/stops probes · gateway is local · e enables configured internet targets",
-        Page::Connections=>"f cycles All / Established / Listening / External · Enter inspects · process access depends on UID",
-        Page::Ports=>"ALL = wildcard bind, not confirmed public exposure · Enter inspects · f filters",
-        Page::Bandwidth=>"Rates from counter deltas · primary-interface history · process bandwidth needs extra instrumentation",
-        Page::Routes=>"IPv4 + IPv6, all visible tables · Ctrl+K → Add / Remove exact main-table routes",
-        Page::Neighbors=>"Neighbor table reflects recent traffic · Ctrl+K → LAN discovery / Label known device",
-        Page::Tools=>"Ctrl+K opens diagnostics, HTTP/TLS, ping, paths, speed, VPN, firewall and container inspection",
-        Page::Events=>"Local session observations and task results · retained history · UTC timestamps",
-        Page::History=>"Persisted speed/iperf tests · selected backend recorded · traffic and latency charts from history",
-        Page::Profiles=>"Named DNS + MTU configurations · Ctrl+K → Save / Apply / Delete · previews before system changes",
-        Page::System=>"Optional backends are detected at runtime · missing tools disable their operation with a clear error",
-        Page::Tailscale=>"Local tailnet status · r refresh · Ctrl+K → Peer ping, NAT/DERP, DNS or exit-node controls",
-        Page::Pihole=>"Pi-hole v6 · Ctrl+K connect / pause 60s / resume · r refresh · p pauses polling",
-        Page::Dashboard=>""
-    }
-}
-fn page(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    if a.page == Page::Tools
-        && a.result.as_ref().is_some_and(|r| {
-            !r.findings.is_empty() && r.columns.first().is_some_and(|c| c == "Status")
-        })
-    {
-        diagnostic_view(f, a, area, t);
-        return;
-    }
-    let graph = matches!(
-        a.page,
-        Page::Bandwidth | Page::Latency | Page::History | Page::Pihole
-    ) && area.height >= 17;
-    let service = match a.page {
-        Page::Tailscale => a.tailscale_result.as_ref(),
-        Page::Pihole => a.pihole_result.as_ref(),
-        _ => None,
-    };
-    let note_lines = if a.page == Page::Tools {
-        a.result
-            .as_ref()
-            .map(|r| (r.notes.len() + r.metrics.len() + 2).min(9) as u16)
-            .unwrap_or(0)
-    } else {
-        0
-    };
-    let pieces = Layout::vertical([
-        Constraint::Length(if service.is_some() {
-            5.min(area.height / 3)
-        } else {
-            2
-        }),
-        Constraint::Min(4),
-        Constraint::Length(if graph {
-            (area.height / 2).clamp(9, 24)
-        } else {
-            0
-        }),
-        Constraint::Length(note_lines),
-    ])
-    .split(area);
-    f.render_widget(
-        Paragraph::new(
-            a.result
-                .as_ref()
-                .filter(|_| a.page == Page::Tools)
-                .and_then(|r| r.findings.first())
-                .map(|finding| {
-                    format!(
-                        "[{}] {} · {}",
-                        finding.severity.label(),
-                        finding.title,
-                        finding.next_step
-                    )
-                })
-                .unwrap_or_else(|| description(a.page).into()),
-        )
-        .style(Style::default().fg(t.muted))
-        .wrap(Wrap { trim: false }),
-        pieces[0],
-    );
-    if let Some(result) = service {
-        f.render_widget(Clear, pieces[0]);
-        f.render_widget(
-            Block::default().style(Style::default().bg(t.panel)),
-            pieces[0],
-        );
-        let mut lines = vec![Line::from(label(
-            format!(
-                "{} · observed {} UTC · {}",
-                a.page.title(),
-                result.at.format("%H:%M:%S"),
-                if a.paused { "PAUSED" } else { "r refresh" }
-            ),
-            t.accent,
-        ))];
-        if let Some(ts) = &result.tailscale {
-            lines.push(Line::from(label(
-                format!("{} · {} · {}", ts.state, ts.self_name, ts.ips.join(" / ")),
-                t.fg,
-            )));
-            lines.push(Line::from(label(
-                format!(
-                    "Exit: {} · {}",
-                    ts.exit_node,
-                    ts.health
-                        .first()
-                        .map(String::as_str)
-                        .unwrap_or("No daemon health warnings")
-                ),
-                t.muted,
-            )));
-        }
-        if let Some(p) = &result.pihole {
-            lines.push(Line::from(label(
-                format!(
-                    "Blocking {} · {} queries · {:.1}% blocked · {} clients",
-                    p.blocking.to_uppercase(),
-                    p.queries,
-                    p.percent,
-                    p.clients
-                ),
-                t.fg,
-            )));
-            lines.push(Line::from(label(
-                format!(
-                    "{} · {}",
-                    p.endpoint,
-                    if a.pihole_polling && !a.paused {
-                        "refresh every 10s"
-                    } else {
-                        "polling stopped"
-                    }
-                ),
-                t.muted,
-            )));
-        }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), pieces[0]);
-    }
-    table(f, a, pieces[1], t);
-    if graph {
-        if a.page == Page::Pihole {
-            crate::charts::pihole(f, a, pieces[2], t);
-        } else if a.page == Page::Latency {
-            latency_chart(f, a, pieces[2], t);
-        } else if a.page == Page::History {
-            speed_chart(f, a, pieces[2], t);
-        } else {
-            traffic(f, a, pieces[2], t);
-        }
-    }
-    if note_lines > 0 {
-        if let Some(r) = &a.result {
-            let mut lines = vec![Line::from(
-                r.metrics
-                    .iter()
-                    .map(|(k, v)| label(format!("{k}: {v}   "), t.accent))
-                    .collect::<Vec<_>>(),
-            )];
-            lines.extend(
-                r.notes
-                    .iter()
-                    .map(|n| Line::from(label(n.clone(), t.muted))),
-            );
-            f.render_widget(
-                Paragraph::new(lines)
-                    .block(block(" RESULT NOTES ", t))
-                    .wrap(Wrap { trim: false }),
-                pieces[3],
-            );
-        }
-    }
-}
-fn diagnostic_view(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    let Some(result) = &a.result else {
-        return;
-    };
-    let parts = Layout::vertical([
-        Constraint::Length(2),
-        Constraint::Min(6),
-        Constraint::Length(3),
-    ])
-    .split(area);
-    f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(result.title.clone(), Style::default().fg(t.fg).bold()),
-            label(
-                format!("  ·  tested {} UTC", result.at.format("%H:%M:%S")),
-                t.muted,
-            ),
-        ])),
-        parts[0],
-    );
-    let panels = if area.width >= 95 {
-        Layout::horizontal([Constraint::Percentage(43), Constraint::Percentage(57)]).split(parts[1])
-    } else {
-        Layout::vertical([Constraint::Percentage(35), Constraint::Percentage(65)]).split(parts[1])
-    };
-    let (columns, rows) = a.rows();
-    let selected = a.selected.min(rows.len().saturating_sub(1));
-    let selected_title = rows.get(selected).and_then(|r| r.get(1));
-    let current =
-        selected_title.and_then(|title| result.findings.iter().find(|f| &f.title == title));
-    let findings: Vec<_> = result
-        .findings
-        .iter()
-        .filter(|f| {
-            a.filter.is_empty()
-                || f.row()
-                    .join(" ")
-                    .to_lowercase()
-                    .contains(&a.filter.to_lowercase())
-        })
-        .collect();
-    let b = block(format!(" {} findings ", findings.len()), t);
-    let inner = b.inner(panels[0]);
-    f.render_widget(b, panels[0]);
-    let visible = (inner.height / 2).max(1) as usize;
-    let offset = selected.saturating_sub(visible.saturating_sub(1));
-    for (n, finding) in findings.iter().enumerate().skip(offset).take(visible) {
-        f.render_widget(
-            Paragraph::new(Line::from(vec![
-                label(if n == selected { "› " } else { "  " }, t.accent),
-                Span::styled(
-                    format!("[{}] ", finding.severity.label()),
-                    Style::default()
-                        .fg(severity_color(finding.severity, t))
-                        .bold(),
-                ),
-                label(finding.title.clone(), t.fg),
-            ]))
-            .wrap(Wrap { trim: false })
-            .style(Style::default().bg(if n == selected {
-                t.border
-            } else {
-                t.panel
-            })),
-            Rect::new(
-                inner.x,
-                inner.y + ((n - offset) * 2) as u16,
-                inner.width,
-                2.min(inner.height),
-            ),
-        );
-    }
-    if let Some(finding) = current {
-        let mut lines = vec![
-            Line::from(Span::styled(
-                finding.title.clone(),
-                Style::default()
-                    .fg(severity_color(finding.severity, t))
-                    .bold(),
-            )),
-            Line::from(""),
-            Line::from(label("EVIDENCE", t.muted)),
-            Line::from(label(finding.evidence.clone(), t.fg)),
-            Line::from(""),
-            Line::from(label("NEXT STEP", t.accent)),
-            Line::from(label(finding.next_step.clone(), t.fg)),
-            Line::from(""),
-            Line::from(label(
-                "No repair was applied. Ctrl+K opens the relevant tool or setting.",
-                t.muted,
-            )),
-        ];
-        if let Some(reachability) = result.metrics.get("Internet reachability") {
-            lines.push(Line::from(label(
-                format!("Internet: {reachability}"),
-                t.accent,
-            )));
-        }
-        f.render_widget(
-            Paragraph::new(lines)
-                .wrap(Wrap { trim: false })
-                .block(block(" Investigation ", t)),
-            panels[1],
-        );
-    } else {
-        f.render_widget(
-            Paragraph::new("No matching findings.").block(block(" Investigation ", t)),
-            panels[1],
-        );
-    }
-    let _ = columns;
-    f.render_widget(Paragraph::new("j/k select a finding · Enter full details · / filter · d run again\nHTTP errors, DNS failures and internet reachability are assessed separately.").style(Style::default().fg(t.muted)),parts[2]);
-}
-fn table(f: &mut Frame, a: &App, area: Rect, t: Theme) {
-    let (columns, rows) = a.rows();
-    let title = if a.page == Page::Tools {
-        a.result
-            .as_ref()
-            .map(|r| r.title.as_str())
-            .unwrap_or(a.page.title())
-    } else {
-        a.page.title()
-    };
-    let filter = if a.filter.is_empty() {
-        String::new()
-    } else {
-        format!(" · filter: {}", a.filter)
-    };
-    let b = block(format!(" {title} · {} rows{filter} ", rows.len()), t);
-    if rows.is_empty() {
-        f.render_widget(Paragraph::new("No matching data.\n\nPress Ctrl+K to choose a relevant tool.\nPress r to refresh or Esc to clear the filter.").style(Style::default().fg(t.muted)).block(b).wrap(Wrap{trim:false}),area);
-        return;
-    }
-    // Keep identity columns readable. Enter opens all fields, including hidden columns.
-    let budget = if area.width < 65 {
-        2
-    } else if area.width < 100 {
-        3
-    } else if area.width < 150 {
-        5
-    } else {
-        columns.len()
-    };
-    let indices: Vec<usize> =
-        if a.page == Page::Tailscale && area.width >= 125 && columns.len() == 9 {
-            vec![0, 1, 2, 3, 5, 6, 7]
-        } else {
-            (0..columns.len().min(budget)).collect()
-        };
-    let widths: Vec<Constraint> = indices
-        .iter()
-        .map(|i| {
-            if a.page == Page::Tailscale && area.width >= 125 {
-                match *i {
-                    0 => Constraint::Percentage(22),
-                    1 => Constraint::Length(9),
-                    2 => Constraint::Percentage(18),
-                    3 => Constraint::Min(15),
-                    _ => Constraint::Length(10),
-                }
-            } else {
-                Constraint::Ratio(1, indices.len().max(1) as u32)
-            }
-        })
-        .collect();
-    let selected = a.selected.min(rows.len().saturating_sub(1));
-    let visible = area.height.saturating_sub(4).max(1) as usize;
-    let offset = selected.saturating_sub(visible.saturating_sub(1));
-    let header = Row::new(indices.iter().map(|i| Cell::from(columns[*i].as_str())))
-        .style(Style::default().fg(t.muted).bold())
-        .height(1)
-        .bottom_margin(1);
-    let visible_rows = rows
-        .iter()
-        .skip(offset)
-        .take(visible)
-        .enumerate()
-        .map(|(n, r)| {
-            let index = n + offset;
-            let content = indices.iter().map(|i| {
-                Cell::from(crate::command::clean(
-                    r.get(*i).map(String::as_str).unwrap_or(""),
-                ))
-            });
-            Row::new(content)
-                .style(
-                    Style::default()
-                        .fg(if index == selected { t.accent } else { t.fg })
-                        .bg(if index == selected { t.border } else { t.panel }),
-                )
-                .height(1)
-        });
-    f.render_widget(
-        Table::new(visible_rows, widths)
-            .header(header)
-            .block(b)
-            .column_spacing(2),
-        area,
-    );
-}
-
 fn centered(area: Rect, width: u16, height: u16) -> Rect {
     let w = width.min(area.width.saturating_sub(4));
     let h = height.min(area.height.saturating_sub(2));
@@ -1256,7 +886,7 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
             f.render_widget(Paragraph::new(vec![Line::from(Span::styled("Enable external service access?",Style::default().fg(t.fg).bold())),Line::from(""),Line::from("Configured latency targets and DNS test names may be probed when live monitoring is on. Tools can contact their displayed endpoints without a per-test consent dialog."),Line::from(""),Line::from("Public-IP and speed tests remain explicit actions. No automatic geolocation or telemetry."),Line::from(""),Line::from(label("This setting is saved locally. e disables it.",t.muted)),Line::from(""),Line::from(label("Enter enable · Esc remain local-only",t.accent))]).block(block(" EXTERNAL ACCESS ",t)).wrap(Wrap{trim:false}),area);
         }
         Modal::Help => {
-            let text="KEYBOARD\n\nCtrl+K        Fuzzy command palette: every feature and control\nTab / h l     Next / previous page\n1–9           First nine pages\nj k / ↑ ↓     Move selection\ng G / Home End   First / last row\nPageUp/Down   Move ten rows\nEnter         Inspect selected row\n/             Filter current table\nS             Global search\ns             Sort by first / second column\nf             Socket filter: All / Established / Listening / External\nr             Refresh local snapshot\nm             Toggle latency monitoring\ne             Enable/disable external access\nSpace         Freeze graphs; collection continues\n[ / ]         Graph range: 1 / 5 / 15 min; 30 / 90 / 300 probes\np             Pause snapshot display\nt             Cycle six themes\nu             Preview revert of last network change\nc             Copy selected row using wl-copy/xclip\nE             Export redacted JSON report\nx             Cancel diagnostic task (changes finish or time out)\nEsc           Close overlay / clear filter\nq / Ctrl+C    Quit and restore terminal";
+            let text="KEYBOARD\n\nCtrl+K        Fuzzy command palette: every feature and control\nTab / h l     Next / previous page\n, / .         Previous / next page within section\na             Primary action shown on current page\nb             Return to test catalog from a result\n1–9           First nine pages\nj k / ↑ ↓     Move selection\ng G / Home End   First / last row\nPageUp/Down   Move ten rows\nEnter         Inspect selected row\n/             Filter current table\nS             Global search\ns             Sort by first / second column\nf             Socket filter: All / Established / Listening / External\nr             Refresh local snapshot\nm             Toggle latency monitoring\ne             Enable/disable external access\nSpace         Freeze graphs; collection continues\n[ / ]         Graph range: 1 / 5 / 15 min; 30 / 90 / 300 probes\np             Pause snapshot display\nt             Cycle six themes\nu             Preview revert of last network change\nc             Copy selected row using wl-copy/xclip\nE             Export redacted JSON report\nx             Cancel diagnostic task (changes finish or time out)\nEsc           Close overlay / clear filter\nq / Ctrl+C    Quit and restore terminal";
             f.render_widget(
                 Paragraph::new(text)
                     .style(Style::default().fg(t.fg))

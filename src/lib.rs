@@ -5,6 +5,7 @@ pub mod command;
 pub mod config;
 pub mod control;
 pub mod diagnosis;
+pub mod dither;
 pub mod dot;
 pub mod graphics;
 pub mod integrations;

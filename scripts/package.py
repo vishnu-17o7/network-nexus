@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='nexus-package-') as tmp:
     shutil.copy2(root / 'README.md', doc / 'README.md')
     shutil.copy2(root / 'LICENSE', doc / 'copyright')
     shutil.copy2(root / 'config.example.toml', doc / 'config.example.toml')
-    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Ubuntu 22.04-compatible release baseline and verified Debian installation.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
+    changelog = f'nexus-net ({version}) unstable; urgency=medium\n\n  * Task-focused workbench pages, stable dithered charts and continuous backgrounds.\n  * Ubuntu 22.04-compatible amd64 and ARM64 packages with verified installation.\n\n -- NEXUS contributors <noreply@users.noreply.github.com>  Sat, 03 Oct 2026 00:00:00 +0000\n'
     (doc / 'changelog.gz').write_bytes(gzip.compress(changelog.encode(), mtime=0))
     man = stage / 'usr/share/man/man1'; man.mkdir(parents=True)
     (man / 'nexus.1.gz').write_bytes(gzip.compress((root / 'packaging/nexus.1').read_bytes(), mtime=0))
