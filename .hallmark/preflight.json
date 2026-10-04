@@ -1,6 +1,6 @@
 {
   "project": "NEXUS",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "framework": "Rust / Ratatui 0.29",
   "genre": "modern-minimal native terminal workbench",
   "preserved": [
@@ -10,12 +10,14 @@
     "existing typed actions and consent flows"
   ],
   "changes": [
-    "Secondary page structure",
-    "ordered dither chart fill",
-    "selected-record action defaults",
-    "compact layouts",
-    "built-in text contrast"
+    "Detail density and scan hierarchy",
+    "Compact list priorities and truncation",
+    "Grouped preferences",
+    "Focused forms and inline errors",
+    "Search recovery and bounded help"
   ],
   "scope": "app redesign",
-  "reference": "https://github.com/Nutlope/hallmark/tree/main/skills/hallmark"
+  "reference": "https://github.com/Nutlope/hallmark/tree/main/skills/hallmark",
+  "skill_version": "1.1.0",
+  "skill_commit": "13ac0ec7e148655948100b6396439e481361d690"
 }

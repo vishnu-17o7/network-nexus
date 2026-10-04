@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='nexus-responsive-') as tmp:
         send(b'\r');send(b'\r',.5) # explicit target consent
         assert accepted.wait(1),'HTTP job did not reach local server'
         start=time.monotonic(); output.clear(); send(b'?',.3)
-        assert b'HELP' in output and time.monotonic()-start<.6,'Help blocked behind network I/O'
+        assert b'Keyboard shortcuts' in output and time.monotonic()-start<.6,'Help blocked behind network I/O'
         send(b'\x1b');output.clear();send(b'x',.4)
         assert b'cancelled' in output,'Request cancellation was not responsive'
         send(b'q');proc.wait(timeout=3)

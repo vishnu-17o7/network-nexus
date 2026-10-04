@@ -1,5 +1,17 @@
 # Validation evidence
 
+## v0.5.1 interaction and detail polish
+
+- 65 Rust tests pass with the locked dependency graph. New regression coverage checks visible long-input tails/cursors, secret masking, inline validation and focus recovery, palette clearing, and bounded help scrolling.
+- Formatting and Clippy pass with Rust 1.88. The local executable reports `nexus 0.5.1`.
+- All three PTY suites pass: navigation, detail/palette/form handling, resize and restoration; help/cancellation during stalled HTTP; and PNG transport/cache/freeze/modal cleanup/range/text fallback.
+- 112 real-widget previews cover all 17 pages at 140×42, 80×24 and 60×48, empty states, light/text/paused states and six interactive dialog states. The final contact sheets and individual dialog renders were visually reviewed.
+- The review corrected compact detail clipping, long-value cursor loss, validation messages hidden behind overlays, empty search recovery and repeated empty selection panels.
+- Reviewed static text pairs across all six built-in themes meet at least 4.52:1; selected-row foreground/highlight pairs meet 6.31:1. The active cursor indicator meets 3.28:1 against its highlight. User-supplied colors are not covered by these values.
+- Hallmark 1.1.0 is installed from upstream commit `13ac0ec7e148655948100b6396439e481361d690` and its applicable audit/redesign/state/review guidance was used. Final scores (1–5): philosophy 4, hierarchy 4, execution 4, specificity 5, restraint 5, variety 4.
+
+See the [five-flow UI audit and before/after evidence](UI-AUDIT-0.5.1.md). Screenshots show explicitly labeled example data, not live measurements. The existing native amd64/ARM64 release and exact-package installation gates remain required before publication; their results are recorded in [GitHub Actions](https://github.com/vishnu-17o7/network-nexus/actions).
+
 ## v0.5.0 workbench review
 
 - 62 Rust tests pass locally, including ordered-fill bounds/gaps, selected frozen latency targets, section navigation/click targets, filtered/sorted action defaults and continuous backgrounds.

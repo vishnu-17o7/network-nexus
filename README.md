@@ -8,16 +8,16 @@ command menus.
 
 ![NEXUS overview — labeled example data](docs/overview-preview.png)
 
-## Install NEXUS 0.5.0
+## Install NEXUS 0.5.1
 
-[Download release v0.5.0](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.5.0) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#050) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
+[Download release v0.5.1](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.5.1) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#051) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
 
 NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64 or ARM64
 and glibc 2.35+**, including Ubuntu 22.04 and 24.04. Check with `uname -m` and
 `ldd --version`. On older distributions or other CPU architectures, build from source.
 Windows and macOS do not have native network backends in this release.
 
-The v0.5.0 release is built inside Ubuntu 22.04 and rejects any binary requiring
+The v0.5.1 release is built inside Ubuntu 22.04 and rejects any binary requiring
 GLIBC newer than 2.35. CI builds and installs the package on Ubuntu 22.04 and 24.04, with native ARM64
 builds and additional Debian 12/13 ARM64 installation and terminal checks. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
 libc to install the older package. Other Linux distributions can use the archive
@@ -33,15 +33,15 @@ your package manager.
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-net_0.5.0_amd64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/nexus-net_0.5.1_amd64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 Continue only if the downloaded package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.5.0_amd64.deb
+sudo apt install ./nexus-net_0.5.1_amd64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -74,15 +74,15 @@ On a compatible system:
 ```bash
 mkdir -p nexus-pi-downloads
 cd nexus-pi-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-net_0.5.0_arm64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/nexus-net_0.5.1_arm64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.5.0_arm64.deb
+sudo apt install ./nexus-net_0.5.1_arm64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -97,30 +97,30 @@ physical Pi hardware and wireless drivers have not been tested here.
 
 | Machine / userspace | Debian package | Standalone archive |
 | --- | --- | --- |
-| x86_64 / amd64 Linux | `nexus-net_0.5.0_amd64.deb` | `nexus-0.5.0-linux-amd64.tar.gz` |
-| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.5.0_arm64.deb` | `nexus-0.5.0-linux-arm64.tar.gz` |
+| x86_64 / amd64 Linux | `nexus-net_0.5.1_amd64.deb` | `nexus-0.5.1-linux-amd64.tar.gz` |
+| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.5.1_arm64.deb` | `nexus-0.5.1-linux-arm64.tar.gz` |
 
 ### Standalone archive — no root required
 
 The archives have the same CPU and glibc requirements. The commands below use
-amd64; on ARM64, use `nexus-0.5.0-linux-arm64.tar.gz` in both download and
+amd64; on ARM64, use `nexus-0.5.1-linux-arm64.tar.gz` in both download and
 extraction commands. Download and verify first:
 
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-0.5.0-linux-amd64.tar.gz
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/nexus-0.5.1-linux-amd64.tar.gz
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.1/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the archive reports `OK`:
 
 ```bash
-mkdir -p nexus-0.5.0
-tar -xzf nexus-0.5.0-linux-amd64.tar.gz -C nexus-0.5.0
+mkdir -p nexus-0.5.1
+tar -xzf nexus-0.5.1-linux-amd64.tar.gz -C nexus-0.5.1
 mkdir -p "$HOME/.local/bin"
-install -m 755 nexus-0.5.0/nexus "$HOME/.local/bin/nexus"
+install -m 755 nexus-0.5.1/nexus "$HOME/.local/bin/nexus"
 "$HOME/.local/bin/nexus" --version
 "$HOME/.local/bin/nexus"
 ```
@@ -137,7 +137,7 @@ install a current Rust toolchain through [rustup](https://rustup.rs/) if the
 distribution's Rust is too old.
 
 ```bash
-git clone --branch v0.5.0 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
+git clone --branch v0.5.1 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
 cd network-nexus
 cargo install --locked --path .
 "$HOME/.cargo/bin/nexus" --version
@@ -192,6 +192,19 @@ restraint and consistency guidance, adapted to the existing native TUI. The shar
 system and scope are recorded in [design.md](design.md).
 
 ![NEXUS workbench pages — labeled example data](docs/workbench-gallery.png)
+
+### UI polish in 0.5.1
+
+Inspection uses aligned detail fields, explicit truncation, a visible selection marker
+and right-aligned measurements. Empty lists show a single useful explanation.
+Preferences group appearance, collection and access settings. Forms keep the active
+input visible, mask secrets and show validation errors inside the dialog. Search has
+a recovery state, and grouped help supports Home/End and PageUp/PageDown.
+
+The [UI audit](docs/UI-AUDIT-0.5.1.md) records the findings and before/after evidence.
+Hallmark's installed redesign and review guidance informed this pass.
+
+![NEXUS interaction polish — labeled example data](docs/polish-gallery.png)
 
 ### Dithered graphs
 

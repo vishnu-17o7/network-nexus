@@ -1,56 +1,30 @@
-# NEXUS 0.5.0 — network workbench
+# NEXUS 0.5.1 — interface polish
 
-The overview keeps its familiar layout. The rest of the app now has task-specific
-views: inspection lists with visible details, a focused diagnostic test catalog,
-findings with evidence and next steps, chart-led monitoring, service connection
-states, and preferences beside saved profiles.
+A focused polish pass informed by the installed Hallmark skill and a fresh review of all 17 pages.
 
-Both pixel and portable terminal graphs use stable ordered-dither fills beneath
-clear traces. Real spikes and missing-reply gaps remain visible. The Latency page
-charts the selected target, including frozen history. Background seams between
-panels, chart layers and gutters are removed across all six themes and custom colors.
-
-Secondary tabs are visible and clickable. Use **comma / period** to move within a
-section, **a** for the displayed page action, and **b** to return from a result to
-the test catalog. **Ctrl+K** continues to expose every tool and control. Filtering
-and sorting now keep interface, Wi-Fi, profile and Tailscale form defaults aligned
-with the visible selection. Compact layouts retain profile rows and diagnostic
-next steps. Muted and status text contrast is improved in built-in themes.
-
-The design system and Hallmark review are documented in `design.md`. Screenshots
-come from the actual widgets with labeled example data. The pending 0.4.2
-background fix is included here; there was no intermediate 0.4.2 release.
+- Inspection details use aligned fields with identity and state first. Lists have descriptive titles, a visible selection marker, right-aligned measurements and explicit truncation.
+- Compact views retain more useful information. Empty lists no longer show an unused selection pane.
+- Preferences group appearance, collection and access. Diagnostic findings are easier to scan on small terminals.
+- Dialogs keep keyboard focus clear. Long inputs retain their visible cursor; passwords remain masked. Port-validation errors appear inside the form, focus the invalid field and clear when edited.
+- Search explains empty results and supports Ctrl+U. Help is grouped by task; Home/End and PageUp/PageDown work without scrolling into a blank view.
+- The overview composition, dithered graphs, measured spikes, missing-data gaps and continuous content background are retained.
 
 ## Install or upgrade
 
-Download the appropriate `.deb` and `SHA256SUMS` from this release into an empty
-directory. Verify the package reports `OK`, then install:
+Download the matching `.deb` and `SHA256SUMS` into an empty directory. Verify the file reports `OK`, then install:
 
 ```bash
 sha256sum --check --ignore-missing SHA256SUMS
-sudo apt install ./nexus-net_0.5.0_amd64.deb
+sudo apt install ./nexus-net_0.5.1_amd64.deb
 nexus --version
 nexus --doctor
 nexus
 ```
 
-For **64-bit Raspberry Pi OS Bookworm or newer**, confirm
-`dpkg --print-architecture` reports `arm64`, then install
-`nexus-net_0.5.0_arm64.deb` using the same steps. An `armhf` userspace cannot use the
-ARM64 binary. Standalone amd64 and ARM64 archives are also available.
+Use `nexus-net_0.5.1_arm64.deb` for ARM64 Linux, including 64-bit Raspberry Pi OS Bookworm or newer. Confirm `dpkg --print-architecture` reports `arm64`. Both architectures also have standalone archives.
 
-Native builds use Ubuntu 22.04 and reject GLIBC requirements above 2.35. Release
-publication requires Rust formatting/tests/Clippy, terminal navigation and
-restoration, blocked-I/O responsiveness, graphics transport, package installation,
-and verification of the exact artifacts on Ubuntu 24.04 amd64 and Debian 12/13 ARM64.
-Physical Pi hardware and individual terminal compositors remain outside CI coverage.
+The Ubuntu 22.04 build baseline and GLIBC 2.35 ceiling are unchanged. Publication requires native build/install and terminal checks on Ubuntu 22.04 amd64/ARM64, followed by exact-package verification on Ubuntu 24.04 amd64 and Debian 12/13 ARM64.
 
-Installation does not start a service or alter network configuration. External
-tests and network changes retain their existing consent and confirmation flows.
-Pi-hole credentials remain session-only. Windows, macOS, 32-bit ARM and static-musl
-binaries are not included.
+65 Rust tests cover the application and interaction regressions. Screenshots use actual widgets with labeled example data. Physical Pi hardware, individual terminal compositors and screen readers remain outside automated coverage. Windows/macOS and 32-bit ARM binaries are not included.
 
-[Full installation instructions](https://github.com/vishnu-17o7/network-nexus#install-nexus-050)
-· [Platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md)
-· [Screenshots](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/workbench-gallery.png)
-· [Validation](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/VALIDATION.md)
+[Installation instructions](https://github.com/vishnu-17o7/network-nexus#install-nexus-051) · [UI audit and evidence](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/UI-AUDIT-0.5.1.md) · [Validation](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/VALIDATION.md)

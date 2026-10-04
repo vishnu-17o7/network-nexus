@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory(prefix="nexus-pty-") as data:
         after = termios.tcgetattr(slave)
         text = output.decode("utf-8", "replace")
         assert process.returncode == 0, text[-3000:]
-        for expected in ["NEXUS", "Interfaces", "COMMAND PALETTE", "Set runtime MTU", "HELP", "Connect to Pi-hole v6"]:
+        for expected in ["NEXUS", "Interfaces", "Actions", "Set runtime MTU", "Keyboard shortcuts", "Connect to Pi-hole v6"]:
             assert expected in text, f"Missing rendered surface: {expected}"
         assert "\x1b[?1049h" in text and "\x1b[?1049l" in text, "Alternate screen not restored"
         assert after[3] & (termios.ICANON | termios.ECHO) == before[3] & (termios.ICANON | termios.ECHO), "Raw mode not restored"

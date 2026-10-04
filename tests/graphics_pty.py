@@ -75,7 +75,7 @@ for mode in ['kitty', 'text']:
                 drain(2.4)
                 assert not images(output), 'Frozen chart re-encoded while live collection continued'
                 send(b'?')
-                assert b'HELP' in output and b'a=d,d=I' in output, 'Modal did not remove chart overlay'
+                assert b'Keyboard shortcuts' in output and b'a=d,d=I' in output, 'Modal did not remove chart overlay'
                 output.clear()
                 send(b'\x1b')
                 assert images(output), 'Charts not restored after modal'

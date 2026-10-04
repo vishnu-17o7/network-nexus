@@ -1,3 +1,5 @@
+// Hallmark · modern-minimal · native workbench · design-system: design.md
+// Pre-emit critique: P4 H4 E4 S5 R5 V4. Terminal semantics replace CSS-only gates.
 use crate::{
     app::{App, Modal, Page},
     model::{ms, rate},
@@ -163,6 +165,84 @@ fn label<'a>(value: impl Into<std::borrow::Cow<'a, str>>, color: Color) -> Span<
     Span::styled(value, Style::default().fg(color))
 }
 
+/// Keep the editing end visible without splitting a UTF-8 character.
+fn input_tail(value: &str, width: u16) -> String {
+    if Line::from(value).width() <= width as usize {
+        return value.into();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    let mut suffix = Vec::new();
+    let mut used = 1;
+    for c in value.chars().rev() {
+        let w = Span::raw(c.to_string()).width();
+        if used + w > width as usize {
+            break;
+        }
+        suffix.push(c);
+        used += w;
+    }
+    format!("…{}", suffix.into_iter().rev().collect::<String>())
+}
+
+fn wrap_cells(value: &str, width: u16) -> Vec<String> {
+    if width == 0 {
+        return Vec::new();
+    }
+    let mut result = Vec::new();
+    for paragraph in value.split('\n') {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            if !line.is_empty() && Line::from(format!("{line} {word}")).width() > width as usize {
+                result.push(std::mem::take(&mut line));
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            for c in word.chars() {
+                if Line::from(format!("{line}{c}")).width() > width as usize && !line.is_empty() {
+                    result.push(std::mem::take(&mut line));
+                }
+                line.push(c);
+            }
+        }
+        result.push(line);
+    }
+    result
+}
+
+fn property_lines(key: &str, value: &str, width: u16, t: Theme) -> Vec<Line<'static>> {
+    let key_width = (width / 3).clamp(8, 16).min(width.saturating_sub(5));
+    let value_width = width.saturating_sub(key_width + 2);
+    let value = if value.trim().is_empty() {
+        "—"
+    } else {
+        value
+    };
+    wrap_cells(value, value_width)
+        .into_iter()
+        .enumerate()
+        .map(|(n, part)| {
+            Line::from(vec![
+                label(
+                    format!(
+                        "{:<width$}  ",
+                        if n == 0 {
+                            fit_text(key, key_width)
+                        } else {
+                            String::new()
+                        },
+                        width = key_width as usize
+                    ),
+                    t.muted,
+                ),
+                label(part, t.fg),
+            ])
+        })
+        .collect()
+}
+
 pub fn draw(frame: &mut Frame, app: &App) {
     app.graphics.borrow_mut().begin_frame();
     let t = Theme::from_app(app);
@@ -207,7 +287,7 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     let tab_width = area.width.saturating_sub(brand_width);
     let labels = if area.width < 60 {
         ["Home", "Test", "View", "Live", "Set"]
-    } else if area.width >= 95 {
+    } else if area.width >= 70 {
         ["Overview", "Diagnose", "Inspect", "Monitor", "Settings"]
     } else {
         ["Home", "Test", "Inspect", "Live", "Setup"]
@@ -273,7 +353,14 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
                     t.accent
                 },
             ),
-            label(a.page.title(), t.fg),
+            label(
+                if a.page == Page::Dashboard {
+                    a.page.title()
+                } else {
+                    "Local collection"
+                },
+                t.fg,
+            ),
             label(
                 if area.width < 70 {
                     ""
@@ -292,7 +379,7 @@ fn header(f: &mut Frame, a: &App, area: Rect, t: Theme) {
 pub fn clicked_tab(column: u16, width: u16) -> Option<Page> {
     let labels = if width < 60 {
         ["Home", "Test", "View", "Live", "Set"]
-    } else if width >= 95 {
+    } else if width >= 70 {
         ["Overview", "Diagnose", "Inspect", "Monitor", "Settings"]
     } else {
         ["Home", "Test", "Inspect", "Live", "Setup"]
@@ -344,12 +431,18 @@ fn footer(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     }
     let range_page = matches!(a.page, Page::Dashboard | Page::Bandwidth | Page::Latency);
     let chart_page = range_page || matches!(a.page, Page::Pihole | Page::History);
-    let keys = if a.page == Page::Tools && a.result.is_none() {
-        " j/k select · Enter run test · / filter · Ctrl+K all actions · ? help · q quit"
+    let keys = if area.width < 60 {
+        " Ctrl+K actions · ? help · q quit"
+    } else if a.page == Page::Tools && a.result.is_none() {
+        if area.width < 90 {
+            " ↑ ↓ select · Enter run · Ctrl+K · ? help · q quit"
+        } else {
+            " j/k select · Enter run test · / filter · Ctrl+K all actions · ? help · q quit"
+        }
     } else if a.page != Page::Dashboard && area.width >= 110 {
         " , . section   a action   / filter   j/k select   Enter details   Ctrl+K all actions   ? help   q quit"
     } else if a.page != Page::Dashboard {
-        " , . section · a action · Enter details · Ctrl+K · ? · q"
+        " , . pages · Enter details · Ctrl+K · ? help · q quit"
     } else if range_page && area.width >= 110 {
         " Space freeze graphs   [ ] range   d diagnose   Ctrl+K actions   Tab page   ? help   q quit"
     } else if range_page && area.width >= 60 {
@@ -696,7 +789,14 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
 }
 fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
     let height = match modal {
-        Modal::Form(v) => (v.fields.len() * 3 + 7) as u16,
+        Modal::Form(v) => {
+            (v.fields.len() * 3
+                + 4
+                + wrap_cells(&v.note, f.area().width.saturating_sub(8).min(76))
+                    .len()
+                    .clamp(1, 3)
+                + 2) as u16
+        }
         Modal::Palette { .. } => 20,
         Modal::Help => 25,
         Modal::Detail { lines, .. } => (lines.len() + 5).clamp(8, 26) as u16,
@@ -704,6 +804,11 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
         _ => 15,
     };
     let area = centered(f.area(), 80, height);
+    // A modal owns keyboard focus. Quiet the entire underlay uniformly.
+    for cell in &mut f.buffer_mut().content {
+        cell.set_fg(t.muted).set_bg(t.bg);
+        cell.set_style(Style::default().remove_modifier(Modifier::BOLD));
+    }
     f.render_widget(Clear, area);
     match modal {
         Modal::Palette {
@@ -713,22 +818,28 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
         } => {
             let b = block(
                 if *global {
-                    " GLOBAL SEARCH "
+                    " Search local records "
                 } else {
-                    " COMMAND PALETTE "
+                    " Actions "
                 },
                 t,
-            );
+            )
+            .border_style(Style::default().fg(t.accent))
+            .title_style(Style::default().fg(t.fg).bold());
             let inner = b.inner(area);
             f.render_widget(b, area);
             let chunks = Layout::vertical([
                 Constraint::Length(2),
-                Constraint::Min(3),
+                Constraint::Min(1),
                 Constraint::Length(1),
             ])
             .split(inner);
             f.render_widget(
-                Paragraph::new(format!("> {query}▏")).style(Style::default().fg(t.accent)),
+                Paragraph::new(Line::from(vec![
+                    label("› ", t.accent),
+                    label(input_tail(query, inner.width.saturating_sub(3)), t.fg),
+                    label("▏", t.accent),
+                ])),
                 chunks[0],
             );
             let items: Vec<(String, String)> = if *global {
@@ -739,81 +850,153 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
             } else {
                 a.palette_results(query)
                     .into_iter()
-                    .map(|a| (a.name, a.hint.into()))
+                    .map(|action| (action.name, action.hint.into()))
                     .collect()
             };
-            let visible = (chunks[1].height / 2).max(1) as usize;
-            let offset = selected.saturating_sub(visible.saturating_sub(1));
-            for (index, (name, hint)) in items.iter().enumerate().skip(offset).take(visible) {
-                let color = if index == *selected { t.accent } else { t.fg };
+            if items.is_empty() {
                 f.render_widget(
                     Paragraph::new(vec![
-                        Line::from(label(
-                            format!("{} {name}", if index == *selected { "▸" } else { " " }),
-                            color,
+                        Line::from(Span::styled(
+                            if *global {
+                                "No matching records"
+                            } else {
+                                "No matching actions"
+                            },
+                            Style::default().fg(t.fg).bold(),
                         )),
-                        Line::from(label(format!("  {hint}"), t.muted)),
+                        Line::from(""),
+                        Line::from(label("Try a shorter search.", t.muted)),
+                        Line::from(label("Ctrl+U clears the search · Esc closes", t.muted)),
                     ])
-                    .style(Style::default().bg(if index == *selected {
-                        t.border
-                    } else {
-                        t.panel
-                    })),
-                    Rect::new(
-                        chunks[1].x,
-                        chunks[1].y + ((index - offset) * 2) as u16,
-                        chunks[1].width,
-                        2,
-                    ),
+                    .wrap(Wrap { trim: false }),
+                    chunks[1],
                 );
+            } else {
+                let visible = (chunks[1].height / 2).max(1) as usize;
+                let offset = selected.saturating_sub(visible.saturating_sub(1));
+                for (index, (name, hint)) in items.iter().enumerate().skip(offset).take(visible) {
+                    let active = index == *selected;
+                    let lines = vec![
+                        Line::from(vec![
+                            label(if active { "› " } else { "  " }, t.fg),
+                            Span::styled(
+                                fit_text(name, inner.width.saturating_sub(2)),
+                                Style::default().fg(t.fg).bold(),
+                            ),
+                        ]),
+                        Line::from(label(
+                            format!("  {}", fit_text(hint, inner.width.saturating_sub(2))),
+                            if active { t.fg } else { t.muted },
+                        )),
+                    ];
+                    f.render_widget(
+                        Paragraph::new(lines).style(Style::default().bg(if active {
+                            t.border
+                        } else {
+                            t.panel
+                        })),
+                        Rect::new(
+                            chunks[1].x,
+                            chunks[1].y + ((index - offset) * 2) as u16,
+                            chunks[1].width,
+                            2.min(chunks[1].height),
+                        ),
+                    );
+                }
             }
+            let help = if inner.width >= 62 {
+                format!(
+                    "↑ ↓ select · Enter run · Esc close    {} matches",
+                    items.len()
+                )
+            } else {
+                "↑ ↓ select · Enter run · Esc close".into()
+            };
             f.render_widget(
-                Paragraph::new("Type to search · ↑ ↓ select · Enter run · Esc close")
-                    .style(Style::default().fg(t.muted)),
+                Paragraph::new(fit_text(&help, inner.width)).style(Style::default().fg(t.muted)),
                 chunks[2],
             );
         }
         Modal::Form(form) => {
-            let b = block(format!(" {} ", form.title), t);
+            let b = block(format!(" {} ", form.title), t)
+                .border_style(Style::default().fg(t.accent))
+                .title_style(Style::default().fg(t.fg).bold());
             let inner = b.inner(area);
             f.render_widget(b, area);
-            let visible = (inner.height.saturating_sub(4) / 3).max(1) as usize;
+            let note = wrap_cells(&form.note, inner.width);
+            let note_height = (note.len() as u16).min(if inner.height < 10 { 1 } else { 3 });
+            let error_height = 2;
+            let reserve = note_height + error_height + 2;
+            let fields_height = inner.height.saturating_sub(reserve);
+            let visible = ((fields_height + 1) / 3).max(1) as usize;
             let offset = form.active.saturating_sub(visible.saturating_sub(1));
             for (index, field) in form.fields.iter().enumerate().skip(offset).take(visible) {
                 let y = inner.y + ((index - offset) * 3) as u16;
-                if y + 2 > inner.bottom() {
+                if y + 2 > inner.y + fields_height {
                     break;
                 }
+                let active = index == form.active;
                 let value = if field.secret {
-                    "•".repeat(field.value.chars().count().min(55))
+                    "•".repeat(field.value.chars().count())
                 } else {
-                    field.value.clone()
+                    crate::command::clean(&field.value)
+                };
+                let display = if active {
+                    input_tail(&value, inner.width.saturating_sub(3))
+                } else {
+                    fit_text(&value, inner.width.saturating_sub(2))
+                };
+                let title = if form.fields.len() > visible {
+                    format!("{}  ({}/{})", field.label, index + 1, form.fields.len())
+                } else {
+                    field.label.clone()
                 };
                 f.render_widget(
-                    Paragraph::new(vec![
-                        Line::from(label(field.label.clone(), t.muted)),
-                        Line::from(label(
-                            format!(
-                                "{} {value}{}",
-                                if index == form.active { "▸" } else { " " },
-                                if index == form.active { "▏" } else { "" }
-                            ),
-                            if index == form.active { t.accent } else { t.fg },
-                        )),
-                    ]),
-                    Rect::new(inner.x, y, inner.width, 2),
+                    Paragraph::new(fit_text(&title, inner.width))
+                        .style(Style::default().fg(if active { t.fg } else { t.muted })),
+                    Rect::new(inner.x, y, inner.width, 1),
+                );
+                f.render_widget(
+                    Paragraph::new(Line::from(vec![
+                        label(if active { "› " } else { "  " }, t.fg),
+                        label(display, t.fg),
+                        label(if active { "▏" } else { "" }, t.accent),
+                    ]))
+                    .style(Style::default().bg(if active {
+                        t.border
+                    } else {
+                        t.panel
+                    })),
+                    Rect::new(inner.x, y + 1, inner.width, 1),
                 );
             }
-            let y = inner.bottom().saturating_sub(3);
+            let mut y = inner.bottom().saturating_sub(reserve);
+            if let Some(error) = &form.error {
+                f.render_widget(
+                    Paragraph::new(format!("Check this value: {error}"))
+                        .style(Style::default().fg(t.bad))
+                        .wrap(Wrap { trim: false }),
+                    Rect::new(inner.x, y, inner.width, error_height),
+                );
+            }
+            y += error_height;
             f.render_widget(
-                Paragraph::new(form.note.as_str())
-                    .style(Style::default().fg(t.muted))
-                    .wrap(Wrap { trim: false }),
-                Rect::new(inner.x, y, inner.width, 2),
+                Paragraph::new(
+                    note.into_iter()
+                        .take(note_height as usize)
+                        .map(Line::from)
+                        .collect::<Vec<_>>(),
+                )
+                .style(Style::default().fg(t.muted)),
+                Rect::new(inner.x, y, inner.width, note_height),
             );
+            let hint = if inner.width >= 64 {
+                "Tab next · Ctrl+U clear · Enter submit · Esc cancel"
+            } else {
+                "Tab next · Enter submit · Esc cancel"
+            };
             f.render_widget(
-                Paragraph::new("Tab switch · Ctrl+U clear field · Enter submit · Esc cancel")
-                    .style(Style::default().fg(t.accent)),
+                Paragraph::new(fit_text(hint, inner.width)).style(Style::default().fg(t.accent)),
                 Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
             );
         }
@@ -886,41 +1069,205 @@ fn overlay(f: &mut Frame, a: &App, modal: &Modal, t: Theme) {
             f.render_widget(Paragraph::new(vec![Line::from(Span::styled("Enable external service access?",Style::default().fg(t.fg).bold())),Line::from(""),Line::from("Configured latency targets and DNS test names may be probed when live monitoring is on. Tools can contact their displayed endpoints without a per-test consent dialog."),Line::from(""),Line::from("Public-IP and speed tests remain explicit actions. No automatic geolocation or telemetry."),Line::from(""),Line::from(label("This setting is saved locally. e disables it.",t.muted)),Line::from(""),Line::from(label("Enter enable · Esc remain local-only",t.accent))]).block(block(" EXTERNAL ACCESS ",t)).wrap(Wrap{trim:false}),area);
         }
         Modal::Help => {
-            let text="KEYBOARD\n\nCtrl+K        Fuzzy command palette: every feature and control\nTab / h l     Next / previous page\n, / .         Previous / next page within section\na             Primary action shown on current page\nb             Return to test catalog from a result\n1–9           First nine pages\nj k / ↑ ↓     Move selection\ng G / Home End   First / last row\nPageUp/Down   Move ten rows\nEnter         Inspect selected row\n/             Filter current table\nS             Global search\ns             Sort by first / second column\nf             Socket filter: All / Established / Listening / External\nr             Refresh local snapshot\nm             Toggle latency monitoring\ne             Enable/disable external access\nSpace         Freeze graphs; collection continues\n[ / ]         Graph range: 1 / 5 / 15 min; 30 / 90 / 300 probes\np             Pause snapshot display\nt             Cycle six themes\nu             Preview revert of last network change\nc             Copy selected row using wl-copy/xclip\nE             Export redacted JSON report\nx             Cancel diagnostic task (changes finish or time out)\nEsc           Close overlay / clear filter\nq / Ctrl+C    Quit and restore terminal";
-            f.render_widget(
-                Paragraph::new(text)
-                    .style(Style::default().fg(t.fg))
-                    .block(block(" HELP · j/k scroll · Esc closes ", t))
-                    .scroll((a.scroll, 0))
-                    .wrap(Wrap { trim: false }),
-                area,
-            );
+            let entries = [
+                ("Navigate", ""),
+                ("Ctrl+K", "Search every action and setting"),
+                ("Tab / h l", "Next / previous page"),
+                (", / .", "Previous / next page in this section"),
+                ("1–9", "Jump to the first nine pages"),
+                ("", ""),
+                ("Inspect", ""),
+                ("↑ ↓ / j k", "Select a row"),
+                ("Home / End", "First / last row"),
+                ("PageUp / Down", "Move ten rows"),
+                ("Enter", "Open full details or selected test"),
+                ("/ · S · s", "Filter · global search · sort"),
+                ("c", "Copy the selected row"),
+                ("", ""),
+                ("Measure", ""),
+                ("a", "Run the page's primary action"),
+                ("d · b", "Diagnose · return to test catalog"),
+                ("r · m", "Refresh · toggle latency monitoring"),
+                ("Space · [ ]", "Freeze graphs · change time range"),
+                ("p · x", "Pause collection · cancel test"),
+                ("f", "Change socket filter"),
+                ("", ""),
+                ("Configure", ""),
+                ("t · e", "Cycle theme · external access setting"),
+                ("u · E", "Preview revert · export redacted report"),
+                ("Esc", "Close dialog or clear the filter"),
+                ("q / Ctrl+C", "Quit and restore the terminal"),
+            ];
+            let width = area.width.saturating_sub(4);
+            let mut lines = Vec::new();
+            for (key, value) in entries {
+                if value.is_empty() {
+                    lines.push(Line::from(Span::styled(
+                        key,
+                        Style::default().fg(t.accent).bold(),
+                    )));
+                } else {
+                    lines.extend(property_lines(key, value, width, t));
+                }
+            }
+            scroll_dialog(f, a, area, t, "Keyboard shortcuts", lines, a.scroll);
         }
         Modal::Detail {
             title,
             lines,
             scroll,
         } => {
-            f.render_widget(
-                Paragraph::new(
-                    lines
-                        .iter()
-                        .map(|s| Line::from(s.as_str()))
-                        .collect::<Vec<_>>(),
-                )
-                .block(block(format!(" {title} · j k scroll · Esc close "), t))
-                .wrap(Wrap { trim: false })
-                .scroll((*scroll, 0)),
-                area,
-            );
+            let width = area.width.saturating_sub(4);
+            let content = lines
+                .iter()
+                .flat_map(|s| wrap_cells(&crate::command::clean(s), width))
+                .map(|s| Line::from(label(s, t.fg)))
+                .collect();
+            scroll_dialog(f, a, area, t, title, content, *scroll);
         }
     }
+}
+
+fn scroll_dialog(
+    f: &mut Frame,
+    a: &App,
+    area: Rect,
+    t: Theme,
+    title: &str,
+    lines: Vec<Line<'static>>,
+    scroll: u16,
+) {
+    let b = block(
+        format!(" {} ", fit_text(title, area.width.saturating_sub(6))),
+        t,
+    )
+    .border_style(Style::default().fg(t.accent))
+    .title_style(Style::default().fg(t.fg).bold());
+    let inner = b.inner(area);
+    f.render_widget(b, area);
+    let height = inner.height.saturating_sub(2);
+    let max = lines
+        .len()
+        .saturating_sub(height as usize)
+        .min(u16::MAX as usize) as u16;
+    a.modal_scroll_max.set(max);
+    let offset = scroll.min(max);
+    f.render_widget(
+        Paragraph::new(lines).scroll((offset, 0)),
+        Rect::new(inner.x, inner.y, inner.width, height),
+    );
+    let hint = if max > 0 {
+        format!(
+            "↑ ↓ scroll · PgUp/PgDn · Esc close   {}/{}",
+            offset + 1,
+            max + 1
+        )
+    } else {
+        "Esc close".into()
+    };
+    f.render_widget(
+        Paragraph::new(fit_text(&hint, inner.width)).style(Style::default().fg(t.muted)),
+        Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{Config, History};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn screen(app: &App, width: u16, height: u16) -> String {
+        let mut terminal =
+            Terminal::new(ratatui::backend::TestBackend::new(width, height)).unwrap();
+        terminal.draw(|f| draw(f, app)).unwrap();
+        terminal
+            .backend()
+            .buffer()
+            .content
+            .iter()
+            .map(|c| c.symbol())
+            .collect()
+    }
+
+    #[test]
+    fn editing_long_targets_keeps_cursor_and_secrets_safe() {
+        let mut app = App::new(Config::default(), History::default());
+        app.dispatch("http");
+        if let Some(Modal::Form(f)) = &mut app.modal {
+            f.fields[0].value = format!(
+                "https://example.net/{}?last=visible",
+                "long-path/".repeat(20)
+            );
+        }
+        for width in [40, 60, 80, 140] {
+            let text = screen(&app, width, 24);
+            assert!(text.contains("last=visible▏"), "cursor hidden at {width}");
+        }
+        if let Some(Modal::Form(f)) = &mut app.modal {
+            f.fields[0].value = "private-test-secret".into();
+            f.fields[0].secret = true;
+        }
+        assert!(!screen(&app, 80, 24).contains("private-test-secret"));
+    }
+
+    #[test]
+    fn invalid_port_stays_in_form_and_error_clears_on_edit() {
+        let mut app = App::new(Config::default(), History::default());
+        app.dispatch("tcp");
+        if let Some(Modal::Form(f)) = &mut app.modal {
+            f.fields[1].value = "invalid".into();
+        }
+        assert!(matches!(
+            app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
+            crate::app::Effect::None
+        ));
+        let Some(Modal::Form(form)) = &app.modal else {
+            panic!("invalid form closed")
+        };
+        assert_eq!(form.active, 1);
+        assert_eq!(form.fields[1].value, "invalid");
+        assert!(form
+            .error
+            .as_ref()
+            .is_some_and(|e| e.contains("1 to 65535")));
+        let text = screen(&app, 80, 24);
+        assert!(text.contains("Check this value: Port"));
+        app.handle_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL));
+        let Some(Modal::Form(form)) = &app.modal else {
+            panic!("form closed")
+        };
+        assert!(form.error.is_none());
+        assert!(form.fields[1].value.is_empty());
+    }
+
+    #[test]
+    fn help_scroll_and_empty_palette_have_recovery_paths() {
+        let mut app = App::new(Config::default(), History::default());
+        app.modal = Some(Modal::Help);
+        screen(&app, 60, 24);
+        app.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE));
+        let last = app.scroll;
+        assert!(last > 0);
+        for _ in 0..30 {
+            app.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        }
+        assert_eq!(app.scroll, last);
+        assert!(screen(&app, 60, 24).contains("Quit and restore"));
+        app.handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+        assert_eq!(app.scroll, 0);
+        app.modal = Some(Modal::Palette {
+            query: "no-such-action".into(),
+            selected: 0,
+            global: false,
+        });
+        assert!(screen(&app, 80, 24).contains("No matching actions"));
+        app.handle_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL));
+        let Some(Modal::Palette { query, .. }) = &app.modal else {
+            panic!("palette closed")
+        };
+        assert!(query.is_empty());
+    }
     #[test]
     fn dashboard_background_matches_text_and_graphics_layers() {
         use crate::graphics::Mode;
@@ -1164,6 +1511,7 @@ mod tests {
                         ],
                         active: 1,
                         note: "Session credentials only".into(),
+                        error: None,
                     }),
                     Modal::Help,
                     Modal::ExternalConsent,

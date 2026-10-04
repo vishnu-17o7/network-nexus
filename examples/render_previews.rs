@@ -1,6 +1,6 @@
 //! Render the real widgets using explicitly labeled documentation fixtures.
 use nexus_net::{
-    app::{App, Page},
+    app::{App, Modal, Page},
     config::{Config, History},
     diagnosis::{Finding, Severity},
     model::*,
@@ -249,6 +249,41 @@ fn main() {
     app.filter = "no matching fixture".into();
     render(&dir.join("filter-empty.json"), &app, 80, 24);
     app.filter.clear();
+    // Interaction states use the same dispatch and key handling as the real app.
+    app.page = Page::Interfaces;
+    app.modal = Some(Modal::Palette {
+        query: "dns".into(),
+        selected: 0,
+        global: false,
+    });
+    render(&dir.join("dialog-palette.json"), &app, 110, 32);
+    app.modal = Some(Modal::Palette {
+        query: "no-such-action".into(),
+        selected: 0,
+        global: false,
+    });
+    render(&dir.join("dialog-no-results.json"), &app, 80, 24);
+    app.dispatch("http");
+    if let Some(Modal::Form(form)) = &mut app.modal {
+        form.fields[0].value = "https://service.example.net/api/health/region/india/cluster/production?check=certificate".into();
+    }
+    render(&dir.join("dialog-long-input.json"), &app, 80, 24);
+    app.modal = Some(Modal::Help);
+    render(&dir.join("dialog-help.json"), &app, 110, 32);
+    app.modal = Some(Modal::ExternalConsent);
+    render(&dir.join("dialog-consent.json"), &app, 80, 24);
+    app.modal = None;
+    app.dispatch("tcp");
+    if let Some(Modal::Form(form)) = &mut app.modal {
+        form.fields[1].value = "invalid".into();
+    }
+    app.handle_key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    render(&dir.join("dialog-validation.json"), &app, 80, 24);
+    app.modal = None;
+    app.notification = "PREVIEW FIXTURE · example data, not a live network measurement".into();
     let mut empty = App::new(Config::default(), History::default());
     empty.started = app.started;
     empty.notification = "PREVIEW FIXTURE · empty state".into();

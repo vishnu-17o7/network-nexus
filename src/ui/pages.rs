@@ -1,5 +1,6 @@
-//! Task-specific workbench views. All gutters inherit the continuous body surface.
-use super::{fit_text, label, surface, Theme};
+//! Hallmark · native workbench · design-system: design.md · designed-as-app.
+//! Task-specific views share the continuous body surface.
+use super::{fit_text, label, property_lines, surface, wrap_cells, Theme};
 use crate::{
     app::{App, Page},
     command::clean,
@@ -58,13 +59,7 @@ pub fn draw(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     let compact = area.height < 24;
     let parts = Layout::vertical([
         Constraint::Length(if compact { 1 } else { 2 }),
-        Constraint::Length(if tight {
-            1
-        } else if compact {
-            2
-        } else {
-            3
-        }),
+        Constraint::Length(if tight { 1 } else { 2 }),
         Constraint::Length(if compact { 1 } else { 2 }),
         Constraint::Min(1),
     ])
@@ -100,7 +95,7 @@ pub fn draw(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled(
-                format!("a {}", action.1),
+                format!("[a] {}", action.1),
                 Style::default().fg(t.accent).bold(),
             ),
             label(extra, t.muted),
@@ -150,8 +145,7 @@ pub fn draw(f: &mut Frame, a: &App, area: Rect, t: Theme) {
 fn summary(a: &App) -> String {
     match a.page {
         Page::Interfaces => format!(
-            "{} interfaces · primary {} · gateway {}",
-            a.snapshot.interfaces.len(),
+            "Primary {} · gateway {}",
             a.snapshot.primary.as_deref().unwrap_or("unavailable"),
             a.snapshot.gateway().unwrap_or("unavailable")
         ),
@@ -290,7 +284,9 @@ fn chart(f: &mut Frame, a: &App, area: Rect, t: Theme) {
 }
 
 fn records(f: &mut Frame, a: &App, area: Rect, t: Theme, wide: bool) {
-    if wide && area.width >= 100 {
+    if a.rows().1.is_empty() {
+        record_table(f, a, area, t);
+    } else if wide && area.width >= 100 {
         let panes = Layout::horizontal([Constraint::Percentage(60), Constraint::Percentage(40)])
             .spacing(2)
             .split(area);
@@ -299,7 +295,7 @@ fn records(f: &mut Frame, a: &App, area: Rect, t: Theme, wide: bool) {
     } else if area.height >= 13 {
         let count = a.rows().1.len() as u16;
         let panes = Layout::vertical([
-            Constraint::Length((count + 4).clamp(5, area.height / 2)),
+            Constraint::Length((count + 2).clamp(4, area.height / 2)),
             Constraint::Min(6),
         ])
         .spacing(1)
@@ -410,6 +406,10 @@ fn columns(page: Page, total: usize, width: u16) -> Vec<(usize, Constraint)> {
                 | (Page::Wifi, 2)
                 | (Page::Wifi, 5)
                 | (Page::Routes, 6) => Constraint::Length(7),
+                (Page::Interfaces, 5)
+                | (Page::Interfaces, 6)
+                | (Page::Bandwidth, 1)
+                | (Page::Bandwidth, 2) => Constraint::Length(14),
                 (Page::Wifi, 4) | (Page::Routes, 3) | (Page::System, 1) | (Page::Tailscale, 1) => {
                     Constraint::Length(10)
                 }
@@ -429,33 +429,67 @@ fn columns(page: Page, total: usize, width: u16) -> Vec<(usize, Constraint)> {
         .collect()
 }
 
+fn record_title(page: Page) -> &'static str {
+    match page {
+        Page::Interfaces | Page::Bandwidth => "Interfaces",
+        Page::Wifi => "Nearby networks",
+        Page::Dns => "Resolvers & presets",
+        Page::Connections => "Connections",
+        Page::Ports => "Listening sockets",
+        Page::Routes => "Routing table",
+        Page::Neighbors => "Observed devices",
+        Page::Latency => "Probe targets",
+        Page::History => "Saved tests",
+        Page::Events => "Recent events",
+        Page::Profiles => "Saved profiles",
+        Page::System => "Optional backends",
+        Page::Tailscale => "Tailnet peers",
+        Page::Pihole => "DNS activity",
+        Page::Tools => "Test catalog",
+        Page::Dashboard => "Findings",
+    }
+}
+
+fn numeric_column(header: &str) -> bool {
+    matches!(
+        header,
+        "Signal"
+            | "Channel"
+            | "MTU"
+            | "RX / s"
+            | "TX / s"
+            | "Download"
+            | "Upload"
+            | "Last"
+            | "Loss / sent"
+            | "Download Mbps"
+            | "Upload Mbps"
+            | "Metric"
+            | "PID"
+            | "UID"
+    )
+}
+
 fn record_table(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     let (headers, rows) = a.rows();
     let selected = a.selected.min(rows.len().saturating_sub(1));
-    let title = if a.page == Page::Profiles {
-        "SAVED PROFILES"
-    } else if a.page == Page::Tools && a.result.is_none() {
-        "TEST CATALOG"
+    let title = if a.page == Page::Tools && a.result.is_some() {
+        "Test results"
     } else {
-        "RECORDS"
+        record_title(a.page)
     };
     let suffix = if a.filter.is_empty() {
-        format!(
-            "{} / {}",
-            if rows.is_empty() { 0 } else { selected + 1 },
-            rows.len()
-        )
+        format!("{} entries", rows.len())
     } else {
-        format!("{} matches · / {}", rows.len(), a.filter)
+        format!("{} matches · {}", rows.len(), clean(&a.filter))
     };
-    let compact = area.height < 8;
-    let block = surface(format!("{title}  ·  {suffix}"), t).padding(Padding::new(
-        1,
-        1,
-        if compact { 0 } else { 1 },
-        0,
-    ));
-    let inner = block.inner(area);
+    let compact = area.height < 16;
+    let block = surface(
+        fit_text(&format!("{title} · {suffix}"), area.width.saturating_sub(2)),
+        t,
+    )
+    .padding(Padding::new(1, 1, u16::from(!compact), 0));
+    let mut inner = block.inner(area);
     f.render_widget(block, area);
     if rows.is_empty() {
         let (title, body) = empty_copy(a);
@@ -470,36 +504,78 @@ fn record_table(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         );
         return;
     }
-    let cols = columns(a.page, headers.len(), inner.width);
-    let header = Row::new(cols.iter().map(|(i, _)| Cell::from(headers[*i].clone())))
-        .style(Style::default().fg(t.muted))
-        .bottom_margin(if compact { 0 } else { 1 });
-    let visible = inner
-        .height
-        .saturating_sub(if compact { 1 } else { 2 })
-        .max(1) as usize;
+    let header_height = if compact { 1 } else { 2 };
+    let overflow = rows.len() > inner.height.saturating_sub(header_height) as usize;
+    if overflow {
+        inner.height = inner.height.saturating_sub(1);
+    }
+    let visible = inner.height.saturating_sub(header_height).max(1) as usize;
     let offset = selected.saturating_sub(visible - 1);
-    let items =
-        rows.iter()
-            .enumerate()
-            .skip(offset)
-            .take(visible)
-            .map(|(n, row)| {
-                Row::new(cols.iter().map(|(i, _)| {
-                    Cell::from(clean(row.get(*i).map(String::as_str).unwrap_or("—")))
-                }))
-                .style(Style::default().fg(t.fg).bg(if n == selected {
-                    t.border
+    let cols = columns(a.page, headers.len(), inner.width.saturating_sub(2));
+    let widths = Layout::horizontal(cols.iter().map(|(_, w)| *w))
+        .spacing(2)
+        .split(Rect::new(
+            inner.x,
+            inner.y,
+            inner.width.saturating_sub(2),
+            1,
+        ));
+    let cell = |value: String, n: usize, header: &str| {
+        Cell::from(
+            Line::from(fit_text(&clean(&value), widths[n].width)).alignment(
+                if numeric_column(header) {
+                    Alignment::Right
                 } else {
-                    t.panel
-                }))
-            });
-    f.render_widget(
+                    Alignment::Left
+                },
+            ),
+        )
+    };
+    let header = Row::new(
+        cols.iter()
+            .enumerate()
+            .map(|(n, (i, _))| cell(headers[*i].clone(), n, &headers[*i])),
+    )
+    .style(Style::default().fg(t.muted))
+    .bottom_margin(u16::from(!compact));
+    let items = rows.iter().map(|row| {
+        Row::new(cols.iter().enumerate().map(|(n, (i, _))| {
+            cell(
+                row.get(*i).cloned().unwrap_or_else(|| "—".into()),
+                n,
+                &headers[*i],
+            )
+        }))
+        .style(Style::default().fg(t.fg))
+    });
+    let mut state = TableState::default()
+        .with_selected(Some(selected))
+        .with_offset(offset);
+    f.render_stateful_widget(
         Table::new(items, cols.iter().map(|(_, w)| *w))
             .header(header)
-            .column_spacing(2),
+            .column_spacing(2)
+            .highlight_symbol("› ")
+            .highlight_spacing(HighlightSpacing::Always)
+            .row_highlight_style(Style::default().fg(t.fg).bg(t.border)),
         inner,
+        &mut state,
     );
+    if overflow {
+        f.render_widget(
+            Paragraph::new(fit_text(
+                &format!(
+                    "{}–{} of {} · ↑ ↓ scroll",
+                    offset + 1,
+                    (offset + visible).min(rows.len()),
+                    rows.len()
+                ),
+                inner.width,
+            ))
+            .style(Style::default().fg(t.muted)),
+            Rect::new(inner.x, inner.bottom(), inner.width, 1),
+        );
+    }
 }
 
 fn empty_copy(a: &App) -> (&'static str, &'static str) {
@@ -549,145 +625,160 @@ fn empty_copy(a: &App) -> (&'static str, &'static str) {
 fn detail(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     let (headers, rows) = a.rows();
     let selected = a.selected.min(rows.len().saturating_sub(1));
+    let Some(row) = rows.get(selected) else {
+        return;
+    };
+    let title = match a.page {
+        Page::Interfaces | Page::Bandwidth => "Link details",
+        Page::Wifi => "Network details",
+        Page::Dns => "Resolver details",
+        Page::Latency => "Probe statistics",
+        Page::Connections | Page::Ports => "Connection details",
+        Page::Routes => "Route details",
+        Page::Neighbors => "Device details",
+        Page::Profiles => "Profile details",
+        Page::Events => "Event details",
+        Page::History => "Test details",
+        Page::System => "Backend details",
+        Page::Tailscale => "Peer details",
+        Page::Pihole => "Service controls",
+        _ => "About this test",
+    };
+    let b = surface(title, t).padding(Padding::new(1, 1, u16::from(area.height >= 16), 0));
+    let inner = b.inner(area);
+    f.render_widget(b, area);
+    let order: Vec<usize> = match a.page {
+        Page::Interfaces => vec![0, 2, 1, 3, 4, 5, 6],
+        Page::Wifi => vec![0, 5, 4, 1, 3, 2],
+        Page::Connections | Page::Ports => vec![2, 3, 1, 5, 0, 4, 6],
+        Page::Routes => vec![1, 2, 3, 5, 6, 4, 0],
+        Page::Neighbors => vec![3, 0, 2, 1, 4, 5],
+        _ => (0..headers.len()).collect(),
+    };
+    let mut fields: Vec<(String, String)> = order
+        .into_iter()
+        .filter_map(|i| Some((headers.get(i)?.clone(), row.get(i)?.clone())))
+        .collect();
+    if a.page == Page::Interfaces {
+        if let Some(i) = a
+            .snapshot
+            .interfaces
+            .iter()
+            .find(|i| row.first() == Some(&i.name))
+        {
+            fields.extend([
+                ("MAC".into(), i.mac.clone()),
+                (
+                    "Link speed".into(),
+                    i.speed_mbps
+                        .map(|n| format!("{n} Mbps"))
+                        .unwrap_or_else(|| "Unavailable".into()),
+                ),
+                ("Received".into(), bytes(i.rx_bytes)),
+                ("Sent".into(), bytes(i.tx_bytes)),
+                (
+                    "Errors / drops".into(),
+                    format!("{} / {}", i.rx_errors + i.tx_errors, i.dropped),
+                ),
+            ]);
+        }
+    }
+    if a.page == Page::Tailscale {
+        if let Some(ts) = a
+            .tailscale_result
+            .as_ref()
+            .and_then(|r| r.tailscale.as_ref())
+        {
+            fields.push(("This device".into(), ts.ips.join(", ")));
+            fields.push(("Exit node".into(), ts.exit_node.clone()));
+        }
+    }
     let mut lines = Vec::new();
     if a.page == Page::Pihole {
-        if let Some(result) = &a.pihole_result {
-            let endpoint = result
+        if let Some(r) = &a.pihole_result {
+            let endpoint = r
                 .pihole
                 .as_ref()
                 .map(|p| p.endpoint.as_str())
                 .unwrap_or("—");
-            let lines=vec![
-                Line::from(label(endpoint,t.fg)),
-                Line::from(label(format!("Observed {} UTC",result.at.format("%H:%M:%S")),t.muted)),
-                Line::from(""),
-                Line::from(label("r refresh · p pause / resume collection",t.accent)),
-                Line::from(""),
-                Line::from(label("Ctrl+K → Pause Pi-hole for 60 seconds",t.fg)),
-                Line::from(label("Ctrl+K → Resume Pi-hole blocking",t.fg)),
-                Line::from(label("Ctrl+K → Disconnect Pi-hole monitoring",t.fg)),
-                Line::from(""),
-                Line::from(label("Blocking changes are previewed before confirmation. Credentials stay in this session.",t.muted)),
-            ];
-            f.render_widget(
-                Paragraph::new(lines)
-                    .wrap(Wrap { trim: false })
-                    .block(surface("SERVICE CONTROLS", t)),
-                area,
-            );
-            return;
-        }
-    }
-    if a.page == Page::Tailscale {
-        if let Some(result) = &a.tailscale_result {
-            if let Some(ts) = &result.tailscale {
-                lines.extend([
-                    Line::from(label("THIS DEVICE", t.muted)),
-                    Line::from(label(clean(&ts.ips.join(" · ")), t.fg)),
-                    Line::from(label(format!("Exit node: {}", clean(&ts.exit_node)), t.fg)),
-                    Line::from(label(
-                        format!("Observed {} UTC", result.at.format("%H:%M:%S")),
-                        t.muted,
-                    )),
-                    Line::from(""),
-                ]);
-            }
-        }
-    }
-    if let Some(row) = rows.get(selected) {
-        for (key, value) in headers.iter().zip(row) {
-            lines.push(Line::from(label(clean(key), t.muted)));
-            lines.push(Line::from(label(
-                if value.is_empty() {
-                    "—".into()
-                } else {
-                    clean(value)
-                },
-                t.fg,
-            )));
-        }
-        if a.page == Page::Interfaces {
-            if let Some(i) = a
-                .snapshot
-                .interfaces
-                .iter()
-                .find(|i| row.first() == Some(&i.name))
-            {
-                lines.push(Line::from(""));
-                lines.push(Line::from(label(
-                    format!("MAC  {}", if i.mac.is_empty() { "—" } else { &i.mac }),
-                    t.muted,
-                )));
-                lines.push(Line::from(label(
-                    format!("Counters  ↓ {}  ↑ {}", bytes(i.rx_bytes), bytes(i.tx_bytes)),
-                    t.fg,
-                )));
-                lines.push(Line::from(label(
-                    format!(
-                        "Errors {} · dropped {}",
-                        i.rx_errors + i.tx_errors,
-                        i.dropped
-                    ),
-                    t.muted,
-                )));
-            }
-        }
-        if a.page == Page::Tools && a.result.is_none() {
+            lines.extend(property_lines("Server", endpoint, inner.width, t));
+            lines.extend(property_lines(
+                "Updated",
+                &format!("{} UTC", r.at.format("%H:%M:%S")),
+                inner.width,
+                t,
+            ));
             lines.push(Line::from(""));
             lines.push(Line::from(label(
-                "Enter opens the selected test.",
+                "[r] Refresh  [p] Pause polling",
                 t.accent,
             )));
-            lines.push(Line::from(label(
-                "Review the target before running. Results remain in saved diagnostic history.",
-                t.muted,
-            )));
+            lines.push(Line::from(""));
+            for text in [
+                "Ctrl+K → Pause / resume blocking",
+                "Ctrl+K → Disconnect Pi-hole",
+                "Blocking changes require confirmation.",
+            ] {
+                lines.extend(
+                    wrap_cells(text, inner.width)
+                        .into_iter()
+                        .map(|s| Line::from(label(s, t.muted))),
+                );
+            }
         }
     } else {
-        lines.push(Line::from(label(
-            "Select a record to inspect its fields.",
-            t.muted,
-        )));
-    }
-    let note = match a.page {
-        Page::Tools if a.result.is_none() => {
-            "Ctrl+K also opens advanced tools and configuration controls."
+        for (key, value) in fields {
+            lines.extend(property_lines(&clean(&key), &clean(&value), inner.width, t));
         }
-        Page::Ports => "ALL means a wildcard bind. It does not establish public exposure.",
-        Page::Connections => "Process details depend on your user's permissions.",
-        Page::Dns => {
-            "Preset rows are choices, not active resolvers. Ctrl+K applies a preset after review."
-        }
-        Page::Routes => "System changes apply only after a preview and confirmation.",
-        Page::System => "Missing tools affect their own tests. Install only the backends you need.",
-        Page::Neighbors => "STALE is a neighbor-cache state, not proof that a device is offline.",
-        _ => "Enter expands the full record · c copies the selected row",
-    };
-    lines.push(Line::from(""));
-    lines.push(Line::from(label(note, t.muted)));
-    if a.page == Page::Tools {
-        if let Some(r) = &a.result {
+        let note = match a.page {
+            Page::Tools if a.result.is_none() => {
+                Some("Enter opens this test. Review the target before running.")
+            }
+            Page::Profiles => Some("Ctrl+K → Apply or delete profile. Changes are previewed."),
+            Page::Ports => Some("Wildcard binds do not establish public exposure."),
+            Page::Connections => Some("Process details depend on your permissions."),
+            Page::Dns => Some("Presets are choices, not active resolvers. Apply from Ctrl+K."),
+            Page::Neighbors => Some("STALE is a cache state, not proof of an offline device."),
+            Page::System => Some("Only the related features need a missing backend."),
+            _ => None,
+        };
+        if let Some(note) = note {
+            lines.push(Line::from(""));
             lines.extend(
-                r.metrics
-                    .iter()
-                    .map(|(k, v)| Line::from(label(format!("{k}: {v}"), t.accent))),
+                wrap_cells(note, inner.width)
+                    .into_iter()
+                    .map(|s| Line::from(label(s, t.muted))),
             );
-            lines.extend(r.notes.iter().map(|n| Line::from(label(clean(n), t.muted))));
+        }
+        if a.page == Page::Tools {
+            if let Some(r) = &a.result {
+                for (k, v) in &r.metrics {
+                    lines.extend(property_lines(k, v, inner.width, t));
+                }
+                for n in &r.notes {
+                    lines.extend(
+                        wrap_cells(&clean(n), inner.width)
+                            .into_iter()
+                            .map(|s| Line::from(label(s, t.muted))),
+                    );
+                }
+            }
         }
     }
-    f.render_widget(
-        Paragraph::new(lines)
-            .wrap(Wrap { trim: false })
-            .block(surface(
-                if a.page == Page::Tools && a.result.is_none() {
-                    "ABOUT THIS TEST"
-                } else {
-                    "SELECTION  ·  Enter expands"
-                },
-                t,
-            )),
-        area,
+    let overflow = lines.len() > inner.height as usize;
+    let body = Rect::new(
+        inner.x,
+        inner.y,
+        inner.width,
+        inner.height.saturating_sub(u16::from(overflow)),
     );
+    f.render_widget(Paragraph::new(lines), body);
+    if overflow && inner.height > 0 {
+        f.render_widget(
+            Paragraph::new("Enter opens all fields").style(Style::default().fg(t.accent)),
+            Rect::new(inner.x, inner.bottom() - 1, inner.width, 1),
+        );
+    }
 }
 
 fn findings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
@@ -705,10 +796,17 @@ fn findings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     };
     let (_, rows) = a.rows();
     let selected = a.selected.min(rows.len().saturating_sub(1));
-    let b = surface(format!("FINDINGS  ·  {}", rows.len()), t);
+    let compact = panes[0].height < 12;
+    let b = surface(format!("Findings · {}", rows.len()), t).padding(Padding::new(
+        1,
+        1,
+        u16::from(!compact),
+        0,
+    ));
     let inner = b.inner(panes[0]);
     f.render_widget(b, panes[0]);
-    let visible = (inner.height / 3).max(1) as usize;
+    let row_height = if compact { 1 } else { 3 };
+    let visible = (inner.height / row_height).max(1) as usize;
     let offset = selected.saturating_sub(visible - 1);
     for (n, row) in rows.iter().enumerate().skip(offset).take(visible) {
         let current = result
@@ -718,19 +816,38 @@ fn findings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
         let color = current
             .map(|finding| super::severity_color(finding.severity, t))
             .unwrap_or(t.muted);
-        let lines = vec![
-            Line::from(vec![
-                label(if n == selected { "› " } else { "  " }, t.accent),
-                Span::styled(
-                    row.first().cloned().unwrap_or_default(),
-                    Style::default().fg(color).bold(),
+        let lines = if compact {
+            vec![Line::from(vec![
+                label(if n == selected { "› " } else { "  " }, t.fg),
+                label(
+                    format!("{:<5} ", row.first().cloned().unwrap_or_default()),
+                    if n == selected { t.fg } else { color },
                 ),
-            ]),
-            Line::from(label(
-                format!("  {}", row.get(1).map(String::as_str).unwrap_or("")),
-                t.fg,
-            )),
-        ];
+                label(
+                    fit_text(
+                        row.get(1).map(String::as_str).unwrap_or(""),
+                        inner.width.saturating_sub(8),
+                    ),
+                    t.fg,
+                ),
+            ])]
+        } else {
+            vec![
+                Line::from(vec![
+                    label(if n == selected { "› " } else { "  " }, t.fg),
+                    Span::styled(
+                        row.first().cloned().unwrap_or_default(),
+                        Style::default()
+                            .fg(if n == selected { t.fg } else { color })
+                            .bold(),
+                    ),
+                ]),
+                Line::from(label(
+                    format!("  {}", row.get(1).map(String::as_str).unwrap_or("")),
+                    t.fg,
+                )),
+            ]
+        };
         f.render_widget(
             Paragraph::new(lines).style(Style::default().bg(if n == selected {
                 t.border
@@ -739,9 +856,9 @@ fn findings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
             })),
             Rect::new(
                 inner.x,
-                inner.y + ((n - offset) * 3) as u16,
+                inner.y + ((n - offset) as u16 * row_height),
                 inner.width,
-                2.min(inner.height),
+                if compact { 1 } else { 2.min(inner.height) },
             ),
         );
     }
@@ -789,7 +906,7 @@ fn findings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
     };
     f.render_widget(
         Paragraph::new(lines).wrap(Wrap { trim: false }).block(
-            surface("INVESTIGATION", t).padding(Padding::new(
+            surface("Selected finding", t).padding(Padding::new(
                 1,
                 1,
                 if panes[1].height < 15 { 0 } else { 1 },
@@ -808,97 +925,92 @@ fn settings(f: &mut Frame, a: &App, area: Rect, t: Theme) {
             .split(area)
     } else {
         Layout::vertical([
-            Constraint::Length(if compact { 6 } else { 17 }),
+            Constraint::Length(if compact { 6 } else { 19 }),
             Constraint::Min(5),
         ])
         .spacing(1)
         .split(area)
     };
-    let lines = if compact {
-        vec![
-            Line::from(vec![
-                label("t  Theme       ", t.muted),
-                label(a.config.theme.clone(), t.fg),
-            ]),
-            Line::from(vec![
-                label("m  Monitoring  ", t.muted),
-                label(on_off(a.config.monitoring_enabled), t.accent),
-            ]),
-            Line::from(vec![
-                label("e  External    ", t.muted),
-                label(
-                    if a.config.external_enabled {
-                        "enabled"
-                    } else {
-                        "ask first"
-                    },
-                    t.accent,
-                ),
-            ]),
-            Line::from(vec![
-                label("p  Collection  ", t.muted),
-                label(if a.paused { "paused" } else { "running" }, t.fg),
-            ]),
-        ]
+    let b = surface("Application", t).padding(Padding::new(1, 1, u16::from(!compact), 0));
+    let inner = b.inner(panes[0]);
+    f.render_widget(b, panes[0]);
+    let mut lines = Vec::new();
+    let renderer = if a.graphics.borrow().enabled() {
+        "Pixel · dithered"
     } else {
-        vec![
-            Line::from(vec![
-                label("t  Theme       ", t.muted),
-                label(a.config.theme.clone(), t.fg),
-            ]),
-            Line::from(vec![
-                label("   Charts      ", t.muted),
-                label(format!("dithered · {:?}", a.graphics.borrow().mode), t.fg),
-            ]),
-            Line::from(""),
-            Line::from(vec![
-                label("m  Monitoring  ", t.muted),
-                label(on_off(a.config.monitoring_enabled), t.accent),
-            ]),
-            Line::from(vec![
-                label("e  External    ", t.muted),
-                label(
-                    if a.config.external_enabled {
-                        "enabled"
-                    } else {
-                        "ask first"
-                    },
-                    t.accent,
-                ),
-            ]),
-            Line::from(vec![
-                label("p  Collection  ", t.muted),
-                label(if a.paused { "paused" } else { "running" }, t.fg),
-            ]),
-            Line::from(vec![
-                label("   Refresh     ", t.muted),
-                label(format!("every {}s", a.config.refresh_seconds), t.fg),
-            ]),
-            Line::from(vec![
-                label("   Retention   ", t.muted),
-                label(format!("{} samples", a.config.retention_samples), t.fg),
-            ]),
-            Line::from(""),
-            Line::from(label("Ctrl+K → Add latency target", t.accent)),
-            Line::from(label(
-                format!("Targets: {}", a.config.targets.join(", ")),
-                t.muted,
-            )),
-            Line::from(""),
-            Line::from(label("PROFILE ACTIONS", t.muted)),
-            Line::from(label("a saves a profile. Ctrl+K → Apply / Delete.", t.fg)),
-            Line::from(label(
-                "Network changes are previewed before confirmation.",
-                t.muted,
-            )),
-        ]
+        "Text · dithered"
     };
-    f.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: false }).block(
-            surface("PREFERENCES", t).padding(Padding::new(1, 1, if compact { 0 } else { 1 }, 0)),
-        ),
-        panes[0],
-    );
+    if !compact {
+        lines.push(Line::from(Span::styled(
+            "Appearance",
+            Style::default().fg(t.fg).bold(),
+        )));
+    }
+    lines.extend(property_lines("[t] Theme", &a.config.theme, inner.width, t));
+    if !compact {
+        lines.extend(property_lines("Graphs", renderer, inner.width, t));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Collection",
+            Style::default().fg(t.fg).bold(),
+        )));
+    }
+    lines.extend(property_lines(
+        "[m] Monitoring",
+        on_off(a.config.monitoring_enabled),
+        inner.width,
+        t,
+    ));
+    lines.extend(property_lines(
+        "[p] Snapshot",
+        if a.paused { "Paused" } else { "Live" },
+        inner.width,
+        t,
+    ));
+    if !compact {
+        lines.extend(property_lines(
+            "Refresh",
+            &format!("Every {}s", a.config.refresh_seconds),
+            inner.width,
+            t,
+        ));
+        lines.extend(property_lines(
+            "Retention",
+            &format!("{} samples", a.config.retention_samples),
+            inner.width,
+            t,
+        ));
+        lines.extend(property_lines(
+            "Targets",
+            &a.config.targets.join(", "),
+            inner.width,
+            t,
+        ));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "Access",
+            Style::default().fg(t.fg).bold(),
+        )));
+    }
+    lines.extend(property_lines(
+        "[e] External",
+        if a.config.external_enabled {
+            "Enabled"
+        } else {
+            "Ask before tests"
+        },
+        inner.width,
+        t,
+    ));
+    if !compact {
+        lines.push(Line::from(""));
+        lines.extend(
+            wrap_cells("Ctrl+K → Graph renderer · Add latency target", inner.width)
+                .into_iter()
+                .map(|s| Line::from(label(s, t.muted))),
+        );
+    }
+    f.render_widget(Paragraph::new(lines), inner);
     records(f, a, panes[1], t, false);
 }
 
