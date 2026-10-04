@@ -6,7 +6,11 @@ use crate::{
 };
 use chrono::Utc;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::{cell::RefCell, collections::BTreeMap, time::Instant};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    time::Instant,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
@@ -60,11 +64,11 @@ impl Page {
             Self::Bandwidth => "Bandwidth",
             Self::Routes => "Routes",
             Self::Neighbors => "Neighbors / LAN",
-            Self::Tools => "Diagnostics / tools",
+            Self::Tools => "Diagnostics",
             Self::Events => "Event timeline",
             Self::History => "History",
-            Self::Profiles => "Preferences / profiles",
-            Self::System => "System / capabilities",
+            Self::Profiles => "Preferences",
+            Self::System => "Backends",
             Self::Tailscale => "Tailscale",
             Self::Pihole => "Pi-hole",
         }
@@ -138,6 +142,7 @@ pub struct Form {
     pub fields: Vec<Field>,
     pub active: usize,
     pub note: String,
+    pub error: Option<String>,
 }
 #[derive(Clone)]
 pub enum Modal {
@@ -562,6 +567,7 @@ pub struct App {
     pub selected: usize,
     pub filter: String,
     pub modal: Option<Modal>,
+    pub modal_scroll_max: Cell<u16>,
     pub probes: BTreeMap<String, Probe>,
     pub result: Option<ToolResult>,
     pub assessment: Option<ToolResult>,
@@ -609,6 +615,7 @@ impl App {
             selected: 0,
             filter: String::new(),
             modal: None,
+            modal_scroll_max: Cell::new(0),
             probes: BTreeMap::new(),
             result: None,
             assessment: None,
@@ -960,6 +967,7 @@ impl App {
                 .collect(),
             active: 0,
             note: note.into(),
+            error: None,
         }));
     }
     pub fn dispatch(&mut self, id: &str) -> Effect {
@@ -1039,11 +1047,11 @@ impl App {
             "tool-history"=>{self.result=Some(ToolResult{title:"Saved diagnostic results".into(),at:Utc::now(),columns:vec!["Index".into(),"Time (UTC)".into(),"Tool".into()],rows:self.history.tool_results.iter().enumerate().map(|(i,r)|vec![i.to_string(),r.at.format("%m-%d %H:%M").to_string(),r.title.clone()]).collect(),notes:vec!["Ctrl+K → Open saved diagnostic result to inspect an index.".into()],..Default::default()});self.navigate(Page::Tools);},
             "tool-open"=>self.form(id,"Open saved tool result",vec![("Result index","0".into(),false)],"Use Saved diagnostic results to see indexes."),
             "trace-compare"=>self.compare_traces(),
-            "help"=>self.modal=Some(Modal::Help),_=>self.notice("Unknown action")
+            "help"=>{self.scroll=0;self.modal=Some(Modal::Help)},_=>self.notice("Unknown action")
         }
         Effect::None
     }
-    fn submit(&mut self, f: Form) -> Effect {
+    fn submit(&mut self, mut f: Form) -> Effect {
         let values: Vec<String> = f
             .fields
             .iter()
@@ -1051,6 +1059,12 @@ impl App {
             .collect();
         let v = |i: usize| values.get(i).cloned().unwrap_or_default();
         let parsed = (|| -> anyhow::Result<Effect> {
+            let port =
+                |value: String| -> anyhow::Result<u16> {
+                    value.parse::<u16>().ok().filter(|p| *p > 0).ok_or_else(|| {
+                        anyhow::anyhow!("Port must be a whole number from 1 to 65535.")
+                    })
+                };
             let yes = |value: String| -> anyhow::Result<bool> {
                 match value.to_lowercase().as_str() {
                     "yes" | "true" | "on" => Ok(true),
@@ -1082,7 +1096,7 @@ impl App {
                     server: v(0),
                     identity: v(1),
                     query: v(2),
-                    port: v(3).parse()?,
+                    port: port(v(3))?,
                 }),
                 "trace" | "mtr" => self.request_tool(Tool::Trace {
                     host: v(0),
@@ -1092,11 +1106,11 @@ impl App {
                 "tls" => self.request_tool(Tool::Tls { host: v(0) }),
                 "tcp" => self.request_tool(Tool::Tcp {
                     host: v(0),
-                    port: v(1).parse()?,
+                    port: port(v(1))?,
                 }),
                 "udp" => self.request_tool(Tool::Udp {
                     host: v(0),
-                    port: v(1).parse()?,
+                    port: port(v(1))?,
                 }),
                 "iperf-quick" | "iperf-full" => self.request_tool(Tool::Iperf {
                     host: v(0),
@@ -1218,6 +1232,13 @@ impl App {
             Ok(effect) => effect,
             Err(e) => {
                 self.notice(e.to_string());
+                f.error = Some(e.to_string());
+                if matches!(f.id.as_str(), "tcp" | "udp") {
+                    f.active = 1;
+                }
+                if f.id == "dot" && e.to_string().starts_with("Port must") {
+                    f.active = 3;
+                }
                 self.modal = Some(Modal::Form(f));
                 Effect::None
             }
@@ -1246,7 +1267,11 @@ impl App {
                             query.pop();
                             selected = 0;
                         }
-                        KeyCode::Char(c) => {
+                        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            query.clear();
+                            selected = 0;
+                        }
+                        KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                             query.push(c);
                             selected = 0;
                         }
@@ -1296,14 +1321,17 @@ impl App {
                         }
                         KeyCode::Backspace => {
                             f.fields[f.active].value.pop();
+                            f.error = None;
                         }
                         KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                             if f.fields[f.active].value.len() < 2048 {
                                 f.fields[f.active].value.push(c);
+                                f.error = None;
                             }
                         }
                         KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            f.fields[f.active].value.clear()
+                            f.fields[f.active].value.clear();
+                            f.error = None;
                         }
                         KeyCode::Enter => return self.submit(f),
                         _ => {}
@@ -1337,11 +1365,32 @@ impl App {
                 Modal::Help => {
                     match key.code {
                         KeyCode::Down | KeyCode::Char('j') => {
-                            self.scroll = self.scroll.saturating_add(1)
+                            self.scroll = self
+                                .scroll
+                                .min(self.modal_scroll_max.get())
+                                .saturating_add(1)
+                                .min(self.modal_scroll_max.get())
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
-                            self.scroll = self.scroll.saturating_sub(1)
+                            self.scroll = self
+                                .scroll
+                                .min(self.modal_scroll_max.get())
+                                .saturating_sub(1)
                         }
+                        KeyCode::PageDown => {
+                            self.scroll = self
+                                .scroll
+                                .saturating_add(10)
+                                .min(self.modal_scroll_max.get())
+                        }
+                        KeyCode::PageUp => {
+                            self.scroll = self
+                                .scroll
+                                .min(self.modal_scroll_max.get())
+                                .saturating_sub(10)
+                        }
+                        KeyCode::Home => self.scroll = 0,
+                        KeyCode::End => self.scroll = self.modal_scroll_max.get(),
                         _ => {}
                     }
                     if !matches!(key.code, KeyCode::Esc | KeyCode::Char('?') | KeyCode::Enter) {
@@ -1355,8 +1404,23 @@ impl App {
                 } => {
                     match key.code {
                         KeyCode::Esc | KeyCode::Enter => return Effect::None,
-                        KeyCode::Down | KeyCode::Char('j') => scroll = scroll.saturating_add(1),
-                        KeyCode::Up | KeyCode::Char('k') => scroll = scroll.saturating_sub(1),
+                        KeyCode::Down | KeyCode::Char('j') => {
+                            scroll = scroll
+                                .min(self.modal_scroll_max.get())
+                                .saturating_add(1)
+                                .min(self.modal_scroll_max.get())
+                        }
+                        KeyCode::Up | KeyCode::Char('k') => {
+                            scroll = scroll.min(self.modal_scroll_max.get()).saturating_sub(1)
+                        }
+                        KeyCode::PageDown => {
+                            scroll = scroll.saturating_add(10).min(self.modal_scroll_max.get())
+                        }
+                        KeyCode::PageUp => {
+                            scroll = scroll.min(self.modal_scroll_max.get()).saturating_sub(10)
+                        }
+                        KeyCode::Home => scroll = 0,
+                        KeyCode::End => scroll = self.modal_scroll_max.get(),
                         _ => {}
                     }
                     self.modal = Some(Modal::Detail {
@@ -1445,6 +1509,7 @@ impl App {
                     }],
                     active: 0,
                     note: "Matches visible table values. Escape cancels; enter applies.".into(),
+                    error: None,
                 }))
             }
             KeyCode::Char('S') => {

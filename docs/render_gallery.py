@@ -29,6 +29,7 @@ def sheet(name, entries, columns=2, width=740):
     canvas.save(output / name)
 
 sheet("workbench-gallery.png", [("Interfaces", "page-01-wide"), ("Diagnostics", "page-10-wide"), ("Bandwidth", "page-07-wide"), ("Preferences", "page-13-wide"), ("Tailscale", "page-15-wide"), ("Pi-hole", "page-16-wide")])
+sheet("polish-gallery.png", [("Inspect · 80×24", "page-01-compact"), ("Preferences", "page-13-wide"), ("Actions", "dialog-palette"), ("Validation", "dialog-validation"), ("Long target input", "dialog-long-input"), ("Keyboard shortcuts", "dialog-help")])
 for size in ["wide", "compact", "tall"]:
     sheet("review-" + size + ".png", [(p.stem, p.stem) for p in sorted(source.glob("page-*-" + size + ".json"))], columns=3, width=600)
 sheet("review-empty.png", [(p.stem, p.stem) for p in sorted(source.glob("empty-*.json"))], columns=3, width=600)

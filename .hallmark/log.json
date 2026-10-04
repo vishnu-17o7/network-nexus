@@ -14,5 +14,23 @@
       "variety": 4
     },
     "review": "Native applicable gates reviewed; CSS, web navigation, font selection and marketing hero gates not applicable. Existing product name and OLED/light palettes preserved by user scope."
+  },
+  {
+    "date": "2026-10-04",
+    "version": "0.5.1",
+    "macrostructure": "Existing native workbench with aligned inspection details and focused overlays",
+    "theme": "existing NEXUS six-theme system",
+    "enrichment": "retained measured ordered-dither charts",
+    "brief": "Deep UI audit and polish of secondary pages, forms, search and help",
+    "critique": {
+      "philosophy": 4,
+      "hierarchy": 4,
+      "execution": 4,
+      "specificity": 5,
+      "restraint": 5,
+      "variety": 4
+    },
+    "review": "Installed Hallmark audit/redesign/interaction/slop-test guidance applied. 112 real-widget previews generated, all 17 pages reviewed at three sizes and empty states, six dialog states reviewed. 65 Rust tests and all three PTY suites pass. CSS/font/marketing conventions are not applicable to the established native TUI.",
+    "evidence": "docs/UI-AUDIT-0.5.1.md"
   }
 ]

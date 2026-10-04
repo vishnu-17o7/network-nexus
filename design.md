@@ -1,4 +1,4 @@
-<!-- Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4 · native terminal workbench -->
+<!-- Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 · native terminal workbench -->
 # NEXUS interface system
 
 Audience: people investigating a Linux host or Raspberry Pi over a local terminal or SSH. The interface must help them see the current state, select evidence, and choose a bounded next action.
@@ -43,3 +43,12 @@ Baseline: the secondary pages used equal-width generic columns, concealed import
 The preview generator uses the real widgets and explicit documentation fixtures with reserved example addresses. It covers all 17 pages at wide, compact and tall sizes, plus empty states, filtering, text charts and light mode. These are rendered application buffers, not live network measurements or pictures of physical terminal hardware.
 
 Final critique and validation are recorded after render review in `docs/VALIDATION.md`.
+
+
+## Polish rules (0.5.1)
+
+Page headings name the user's task. Lists name their contents; selected details identify the selected object. Key/value details use aligned rows, prioritize identity and state, and keep a visible path to the full record. Compact lists reserve space for values rather than repeated labels. Ellipses mark truncation. Empty lists do not show a second empty selection panel.
+
+Only the primary action gets accent emphasis; shared navigation and secondary shortcuts stay quiet. Form labels remain above the input. Active values expose their cursor even when long, validation errors appear inside the form, and dialog actions stay visible at the bottom. Palette no-result states provide a recovery action. Help groups commands by purpose.
+
+Native terminal rendering and current consent behavior take priority over web-only Hallmark conventions. Source records and measurements are never synthesized for the live UI.

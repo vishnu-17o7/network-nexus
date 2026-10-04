@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1
+
+- Polish inspection with aligned label/value details, descriptive list titles, selected-row markers, numeric alignment, explicit ellipses and visible scroll ranges.
+- Remove empty selection panes, reduce repeated instructions, and group preferences by appearance, collection and access.
+- Keep compact diagnostic findings scannable and retain useful interface details at 80×24.
+- Give dialogs a consistent focus treatment. Preserve long-input cursor visibility and password masking; display validation errors inside the form without shifting its layout.
+- Add a no-results search state and Ctrl+U recovery. Group help by task and bound scrolling with Home/End and PageUp/PageDown support.
+- Include an evidence-based Hallmark audit, actual widget screenshots and regression checks. Linux amd64/ARM64 packaging retains the Ubuntu 22.04 ABI baseline.
+
 ## 0.5.0
 
 - Redesign secondary pages around inspection, diagnostics, monitoring, services and preferences while retaining the overview layout.
