@@ -24,7 +24,7 @@ def sheet(name, entries, columns=2, width=740):
     for n, (title, im) in enumerate(images):
         x, y = n % columns * width, n // columns * (height + 32)
         draw.text((x + 12, y + 8), title, font=font, fill=(226, 232, 240))
-        im.thumbnail((width, height), Image.Resampling.LANCZOS)
+        im.thumbnail((width, height), getattr(Image, "Resampling", Image).LANCZOS)
         canvas.paste(im, (x, y + 32))
     canvas.save(output / name)
 
