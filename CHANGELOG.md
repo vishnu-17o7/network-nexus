@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.0
+
+- Redesign secondary pages around inspection, diagnostics, monitoring, services and preferences while retaining the overview layout.
+- Add visible secondary navigation, comma/period section shortcuts, clickable tabs and a page-specific `a` action.
+- Replace equal-width generic tables with task-specific columns, visible selection details and actionable empty states.
+- Give diagnostics a focused test catalog and `b` return shortcut; prioritize next steps on short terminals.
+- Expose actual app controls alongside saved profiles; retain visible profile rows at 80×24.
+- Add stable ordered-dither fills to pixel, SVG and portable Braille graphs, with clear traces and genuine data gaps. Chart the selected latency target, including frozen history.
+- Match interface, Wi-Fi, profile and Tailscale action defaults to the filtered/sorted visible selection.
+- Improve muted/status text contrast in built-in themes and keep selected table text legible.
+
+The pending 0.4.2 background patch is included in this release; no intermediate 0.4.2 release was published.
+
+
+- Remove dark background seams between metric cards, charts and findings by painting one continuous main content surface.
+- Match service summaries and empty states to the same surface across all six themes and custom colors.
+- Keep text charts and pixel graphics on the same background; preserve header/footer separation and selected-row highlights.
+- Add background regression checks across all pages, compact/tall layouts, empty/populated charts and both renderers.
+- Generate real widget/chart preview artifacts in CI and refresh documentation screenshots, including the unmeasured text-renderer view.
+- Publish refreshed Ubuntu 22.04-compatible amd64 and Raspberry Pi ARM64 packages and archives.
+
 ## 0.4.1
 
 - Build release packages in an Ubuntu 22.04 container so they can run with glibc 2.35; keep the GitHub runner independent of that compatibility baseline.

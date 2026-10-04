@@ -207,6 +207,37 @@ impl Plot {
             Transform::identity(),
             None,
         );
+        // Shade every segment first so later fills cannot obscure another trace.
+        for s in &self.series {
+            let (r, g, b) = rgb(crate::dither::shade(s.color, self.theme.panel));
+            paint.set_color_rgba8(r, g, b, 255);
+            paint.anti_alias = false;
+            let mut dots = PathBuilder::new();
+            for segment in &s.segments {
+                for p in crate::dither::points(
+                    segment,
+                    self.domain,
+                    self.maximum,
+                    (w / 4) as u16,
+                    (h / 4) as u16,
+                ) {
+                    let (x, y) = map(p);
+                    if let Some(rect) = tiny_skia::Rect::from_xywh(x.round(), y.round(), 1.6, 1.6) {
+                        dots.push_rect(rect);
+                    }
+                }
+            }
+            if let Some(path) = dots.finish() {
+                pix.fill_path(
+                    &path,
+                    &paint,
+                    FillRule::Winding,
+                    Transform::identity(),
+                    None,
+                );
+            }
+        }
+        paint.anti_alias = true;
         for s in &self.series {
             let (r, g, b) = rgb(s.color);
             for points in &s.segments {
@@ -228,19 +259,7 @@ impl Plot {
                     let (x3, y3) = map(c.end);
                     path.cubic_to(x1, y1, x2, y2, x3, y3);
                 }
-                let line = path.clone().finish()?;
-                let end = map(*points.last()?);
-                path.line_to(end.0, (h - 2) as f32);
-                path.line_to(x, (h - 2) as f32);
-                path.close();
-                paint.set_color_rgba8(r, g, b, 13);
-                pix.fill_path(
-                    &path.finish()?,
-                    &paint,
-                    FillRule::Winding,
-                    Transform::identity(),
-                    None,
-                );
+                let line = path.finish()?;
                 paint.set_color_rgba8(r, g, b, 255);
                 pix.stroke_path(
                     &line,
@@ -279,6 +298,23 @@ impl Plot {
                 (h - 3) as f64 - y / self.maximum.max(1.0) * (h - 6) as f64,
             )
         };
+        for s in &self.series {
+            let (r, g, b) = rgb(crate::dither::shade(s.color, self.theme.panel));
+            let mut d = String::new();
+            for segment in &s.segments {
+                for p in crate::dither::points(
+                    segment,
+                    self.domain,
+                    self.maximum,
+                    (w / 4) as u16,
+                    (h / 4) as u16,
+                ) {
+                    let (x, y) = map(p);
+                    let _ = write!(d, "M{x:.0},{y:.0}h1.6v1.6h-1.6z");
+                }
+            }
+            let _ = write!(out, "<path d=\"{d}\" fill=\"rgb({r},{g},{b})\"/>");
+        }
         for s in &self.series {
             let (r, g, b) = rgb(s.color);
             for points in &s.segments {

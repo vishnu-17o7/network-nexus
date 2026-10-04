@@ -136,6 +136,16 @@ fn main() {
     app.dispatch("chart-pause");
     render(&dir.join("overview-paused.json"), &app, 140, 42);
     app.dispatch("chart-pause");
+    let assessment = app.assessment.take();
+    let probes = std::mem::take(&mut app.probes);
+    let dns_ms = app.dns_ms.take();
+    render(&dir.join("overview-unmeasured.json"), &app, 140, 42);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Text;
+    render(&dir.join("overview-unmeasured-text.json"), &app, 140, 42);
+    app.graphics.borrow_mut().mode = nexus_net::graphics::Mode::Preview;
+    app.assessment = assessment;
+    app.probes = probes;
+    app.dns_ms = dns_ms;
     app.notification = "PREVIEW FIXTURE · example data, not a live network measurement".into();
     app.page = Page::Tools;
     render(&dir.join("diagnostics.json"), &app, 140, 36);
@@ -214,6 +224,43 @@ fn main() {
     ));
     render(&dir.join("pihole.json"), &app, 140, 42);
     render(&dir.join("pihole-compact.json"), &app, 60, 32);
+    populate_inspection(&mut app);
+    for page in Page::ALL {
+        app.page = page;
+        app.selected = 0;
+        app.filter.clear();
+        for (suffix, width, height) in [("wide", 140, 42), ("compact", 80, 24), ("tall", 60, 48)] {
+            render(
+                &dir.join(format!("page-{:02}-{suffix}.json", page.index())),
+                &app,
+                width,
+                height,
+            );
+        }
+    }
+    app.page = Page::Tools;
+    app.result = None;
+    render(&dir.join("tools-home.json"), &app, 140, 42);
+    app.page = Page::Profiles;
+    app.config.theme = "light".into();
+    render(&dir.join("settings-light.json"), &app, 140, 42);
+    app.config.theme = "dark".into();
+    app.page = Page::Connections;
+    app.filter = "no matching fixture".into();
+    render(&dir.join("filter-empty.json"), &app, 80, 24);
+    app.filter.clear();
+    let mut empty = App::new(Config::default(), History::default());
+    empty.started = app.started;
+    empty.notification = "PREVIEW FIXTURE · empty state".into();
+    for page in Page::ALL {
+        empty.page = page;
+        render(
+            &dir.join(format!("empty-{:02}.json", page.index())),
+            &empty,
+            100,
+            30,
+        );
+    }
     app.page = Page::Dashboard;
     app.selected = 0;
     app.busy = Some("Network diagnostics · checking DNS, TCP and HTTPS".into());
@@ -221,4 +268,215 @@ fn main() {
         app.tick = n * 3;
         render(&dir.join(format!("animation-{n:02}.json")), &app, 120, 32);
     }
+}
+
+fn populate_inspection(app: &mut App) {
+    use nexus_net::config::{DeviceObservation, SavedProfile};
+    let now = chrono::Utc::now();
+    let primary = &mut app.snapshot.interfaces[0];
+    primary.mac = "02:00:00:00:00:24".into();
+    primary.mtu = 1500;
+    primary.speed_mbps = Some(866);
+    primary.duplex = Some("full".into());
+    primary.rx_bytes = 8_901_220_501;
+    primary.tx_bytes = 937_226_001;
+    primary.connection = Some("Studio".into());
+    primary.dns = vec!["192.0.2.1".into()];
+    app.snapshot.interfaces.extend([
+        Interface {
+            name: "eth0".into(),
+            kind: "Ethernet".into(),
+            state: "down".into(),
+            mtu: 1500,
+            ..Default::default()
+        },
+        Interface {
+            name: "tailscale0".into(),
+            kind: "VPN".into(),
+            state: "unknown".into(),
+            addresses: vec!["100.64.0.24/32".into()],
+            mtu: 1280,
+            ..Default::default()
+        },
+        Interface {
+            name: "lo".into(),
+            kind: "Loopback".into(),
+            state: "unknown".into(),
+            addresses: vec!["127.0.0.1/8".into()],
+            mtu: 65536,
+            ..Default::default()
+        },
+    ]);
+    app.snapshot.routes[0].family = "IPv4".into();
+    app.snapshot.routes[0].metric = 600;
+    app.snapshot.routes[0].protocol = "dhcp".into();
+    app.snapshot.routes[0].table = "main".into();
+    app.snapshot.routes.extend([
+        Route {
+            family: "IPv4".into(),
+            destination: "192.0.2.0/24".into(),
+            interface: "wlan0".into(),
+            protocol: "kernel".into(),
+            table: "main".into(),
+            metric: 600,
+            ..Default::default()
+        },
+        Route {
+            family: "IPv4".into(),
+            destination: "100.64.0.0/10".into(),
+            interface: "tailscale0".into(),
+            protocol: "static".into(),
+            table: "52".into(),
+            ..Default::default()
+        },
+        Route {
+            family: "IPv6".into(),
+            destination: "2001:db8::/64".into(),
+            interface: "wlan0".into(),
+            protocol: "kernel".into(),
+            table: "main".into(),
+            metric: 600,
+            ..Default::default()
+        },
+    ]);
+    app.wifi = [
+        ("Studio", 87, 36, "5 GHz", "WPA3", true),
+        ("Workshop", 62, 6, "2.4 GHz", "WPA2", false),
+        ("Guest", 43, 11, "2.4 GHz", "WPA2", false),
+        ("Printer setup", 26, 1, "2.4 GHz", "OPEN", false),
+    ]
+    .into_iter()
+    .map(
+        |(ssid, signal, channel, frequency, security, connected)| WifiNetwork {
+            ssid: ssid.into(),
+            signal,
+            channel,
+            frequency: frequency.into(),
+            security: security.into(),
+            connected,
+            ..Default::default()
+        },
+    )
+    .collect();
+    app.snapshot.connections = [
+        (
+            "ESTABLISHED",
+            "192.0.2.24:49218",
+            "198.51.100.8:443",
+            2481,
+            "firefox",
+        ),
+        (
+            "ESTABLISHED",
+            "192.0.2.24:49244",
+            "203.0.113.7:443",
+            3052,
+            "git",
+        ),
+        ("LISTEN", "0.0.0.0:22", "0.0.0.0:0", 782, "sshd"),
+        ("LISTEN", "127.0.0.1:3000", "0.0.0.0:0", 3190, "node"),
+        ("LISTEN", "[::]:8080", "[::]:0", 4220, "python3"),
+    ]
+    .into_iter()
+    .map(|(state, local, remote, pid, process)| Connection {
+        protocol: "tcp".into(),
+        state: state.into(),
+        local: local.into(),
+        remote: remote.into(),
+        pid: Some(pid),
+        process: process.into(),
+        uid: 1000,
+        ..Default::default()
+    })
+    .collect();
+    app.snapshot.capabilities = [
+        ("ip", true, "Interfaces, addresses and routes"),
+        ("ping", true, "Latency and packet loss"),
+        ("nmcli", true, "Wi-Fi and connection profiles"),
+        ("dig", true, "DNS queries and resolver comparison"),
+        ("openssl", true, "Certificate and TLS inspection"),
+        ("iperf3", false, "Bandwidth tests against your server"),
+        ("tailscale", true, "Tailnet status and peer paths"),
+        ("nethogs", false, "Per-process bandwidth sampling"),
+    ]
+    .into_iter()
+    .map(|(command, available, purpose)| Capability {
+        command: command.into(),
+        available,
+        purpose: purpose.into(),
+    })
+    .collect();
+    for (ip, mac, state, label) in [
+        ("192.0.2.1", "02:00:00:00:00:01", "REACHABLE", "Gateway"),
+        ("192.0.2.42", "02:00:00:00:00:42", "STALE", "Workbench Pi"),
+        ("192.0.2.80", "02:00:00:00:00:80", "STALE", "Printer"),
+    ] {
+        app.history.devices.insert(
+            ip.into(),
+            DeviceObservation {
+                first_seen: now - chrono::Duration::days(2),
+                last_seen: now,
+                mac: mac.into(),
+                state: state.into(),
+                vendor: String::new(),
+            },
+        );
+        app.history.known_devices.insert(ip.into(), label.into());
+    }
+    app.history.profiles = vec![
+        SavedProfile {
+            name: "Studio Wi-Fi".into(),
+            interface: "wlan0".into(),
+            dns: vec!["192.0.2.1".into()],
+            mtu: Some(1500),
+            ..Default::default()
+        },
+        SavedProfile {
+            name: "Direct resolver".into(),
+            interface: "eth0".into(),
+            dns: vec!["1.1.1.1".into(), "1.0.0.1".into()],
+            mtu: Some(1500),
+            ..Default::default()
+        },
+    ];
+    app.history.events = [
+        (
+            0,
+            "Interface changed",
+            "wlan0 address updated to 192.0.2.24/24",
+        ),
+        (
+            25,
+            "Task completed",
+            "Network diagnostics: DNS response slow; HTTPS reached",
+        ),
+        (80, "Link up", "wlan0 connected to Studio"),
+        (124, "Task completed", "Tailscale: 3 peers observed"),
+    ]
+    .into_iter()
+    .map(|(seconds, kind, detail)| NetworkEvent {
+        at: now - chrono::Duration::seconds(seconds),
+        kind: kind.into(),
+        detail: detail.into(),
+    })
+    .collect();
+    app.history.tests = (0..6)
+        .map(|n| ToolResult {
+            title: "iperf3 · example server".into(),
+            at: now - chrono::Duration::hours(n),
+            metrics: [
+                ("Backend".into(), "iperf3".into()),
+                (
+                    "Download Mbps".into(),
+                    format!("{:.1}", 240.0 + (n as f64 * 0.7).sin() * 35.0),
+                ),
+                (
+                    "Upload Mbps".into(),
+                    format!("{:.1}", 85.0 + (n as f64 * 0.8).sin() * 14.0),
+                ),
+            ]
+            .into(),
+            ..Default::default()
+        })
+        .collect();
 }

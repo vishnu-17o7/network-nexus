@@ -1,6 +1,6 @@
 # Platform support
 
-## Release 0.4.1
+## Release 0.5.0
 
 | Platform | Status | Distribution |
 | --- | --- | --- |

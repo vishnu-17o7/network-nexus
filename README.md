@@ -8,16 +8,16 @@ command menus.
 
 ![NEXUS overview — labeled example data](docs/overview-preview.png)
 
-## Install NEXUS 0.4.1
+## Install NEXUS 0.5.0
 
-[Download release v0.4.1](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.4.1) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#041) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
+[Download release v0.5.0](https://github.com/vishnu-17o7/network-nexus/releases/tag/v0.5.0) · [All releases](https://github.com/vishnu-17o7/network-nexus/releases) · [What's new](CHANGELOG.md#050) · [Build checks](https://github.com/vishnu-17o7/network-nexus/actions)
 
 NEXUS currently runs on **Linux**. The prebuilt packages require **x86_64 / amd64 or ARM64
 and glibc 2.35+**, including Ubuntu 22.04 and 24.04. Check with `uname -m` and
 `ldd --version`. On older distributions or other CPU architectures, build from source.
 Windows and macOS do not have native network backends in this release.
 
-The v0.4.1 release is built inside Ubuntu 22.04 and rejects any binary requiring
+The v0.5.0 release is built inside Ubuntu 22.04 and rejects any binary requiring
 GLIBC newer than 2.35. CI builds and installs the package on Ubuntu 22.04 and 24.04, with native ARM64
 builds and additional Debian 12/13 ARM64 installation and terminal checks. This fixes v0.4.0's GLIBC 2.39 requirement; do not replace your system
 libc to install the older package. Other Linux distributions can use the archive
@@ -33,15 +33,15 @@ your package manager.
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_amd64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-net_0.5.0_amd64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 Continue only if the downloaded package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_amd64.deb
+sudo apt install ./nexus-net_0.5.0_amd64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -74,15 +74,15 @@ On a compatible system:
 ```bash
 mkdir -p nexus-pi-downloads
 cd nexus-pi-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-net_0.4.1_arm64.deb
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-net_0.5.0_arm64.deb
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the package reports `OK`:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_arm64.deb
+sudo apt install ./nexus-net_0.5.0_arm64.deb
 nexus --version
 nexus --doctor
 nexus
@@ -97,30 +97,30 @@ physical Pi hardware and wireless drivers have not been tested here.
 
 | Machine / userspace | Debian package | Standalone archive |
 | --- | --- | --- |
-| x86_64 / amd64 Linux | `nexus-net_0.4.1_amd64.deb` | `nexus-0.4.1-linux-amd64.tar.gz` |
-| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.4.1_arm64.deb` | `nexus-0.4.1-linux-arm64.tar.gz` |
+| x86_64 / amd64 Linux | `nexus-net_0.5.0_amd64.deb` | `nexus-0.5.0-linux-amd64.tar.gz` |
+| ARM64 Linux / 64-bit Raspberry Pi OS | `nexus-net_0.5.0_arm64.deb` | `nexus-0.5.0-linux-arm64.tar.gz` |
 
 ### Standalone archive — no root required
 
 The archives have the same CPU and glibc requirements. The commands below use
-amd64; on ARM64, use `nexus-0.4.1-linux-arm64.tar.gz` in both download and
+amd64; on ARM64, use `nexus-0.5.0-linux-arm64.tar.gz` in both download and
 extraction commands. Download and verify first:
 
 ```bash
 mkdir -p nexus-downloads
 cd nexus-downloads
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/nexus-0.4.1-linux-amd64.tar.gz
-curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.4.1/SHA256SUMS
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/nexus-0.5.0-linux-amd64.tar.gz
+curl -fLO https://github.com/vishnu-17o7/network-nexus/releases/download/v0.5.0/SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
 
 After the archive reports `OK`:
 
 ```bash
-mkdir -p nexus-0.4.1
-tar -xzf nexus-0.4.1-linux-amd64.tar.gz -C nexus-0.4.1
+mkdir -p nexus-0.5.0
+tar -xzf nexus-0.5.0-linux-amd64.tar.gz -C nexus-0.5.0
 mkdir -p "$HOME/.local/bin"
-install -m 755 nexus-0.4.1/nexus "$HOME/.local/bin/nexus"
+install -m 755 nexus-0.5.0/nexus "$HOME/.local/bin/nexus"
 "$HOME/.local/bin/nexus" --version
 "$HOME/.local/bin/nexus"
 ```
@@ -137,7 +137,7 @@ install a current Rust toolchain through [rustup](https://rustup.rs/) if the
 distribution's Rust is too old.
 
 ```bash
-git clone --branch v0.4.1 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
+git clone --branch v0.5.0 --depth 1 https://github.com/vishnu-17o7/network-nexus.git
 cd network-nexus
 cargo install --locked --path .
 "$HOME/.cargo/bin/nexus" --version
@@ -154,7 +154,7 @@ For smooth pixel-level curves, launch NEXUS in **Kitty or a compatible terminal
 such as Ghostty**. Auto mode selects graphics for known compatible terminals;
 other terminals and tmux/screen use text graphs. You can explicitly select a
 renderer with `nexus --chart-renderer kitty` or `nexus --chart-renderer text`.
-See [Smooth graphs](#smooth-graphs) for the complete behavior.
+See [Dithered graphs](#dithered-graphs) for the complete behavior.
 
 Recommended terminal size: **110 × 32**; compact monitoring layouts work from
 **40 × 12**. Configuration confirmation requires at least **80 × 24**.
@@ -171,13 +171,31 @@ tools or services. Missing tools are reported in the UI; basic local monitoring
 works without root. Do not install multiple NEXUS copies unless you intend to
 manage their PATH order (`command -v nexus` shows the selected executable).
 
-*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png)*
+*Actual Ratatui widgets with labeled example data. [Pi-hole](docs/pihole-preview.png) · [Tailscale](docs/tailscale-preview.png) · [80×24](docs/overview-compact.png) · [60×48](docs/overview-tall.png) · [Light theme](docs/overview-light.png) · [Frozen graphs](docs/overview-paused.png) · [Unmeasured text view](docs/overview-unmeasured-text.png)*
 
 ## First session
 
-The Tokscale-inspired dashboard puts live metrics and smooth charts first, with findings and network context below. Download and upload have separate traces; latency retains real spikes and gaps for missing replies. Narrow terminals prioritize columns (Enter shows all fields), and tall dashboards stack the plots. A 30 FPS event loop keeps input and progress responsive; measurements update independently.
+The main content uses one continuous background across cards, chart layers, empty states and their spacing. The outer navigation/footer and selected rows retain their own styling. This applies to all built-in themes and custom colors.
 
-### Smooth graphs
+The overview keeps live metrics and charts above findings and network context. Download and upload have separate traces; latency retains real spikes and gaps for missing replies. Narrow terminals prioritize columns (Enter shows all fields), and tall dashboards stack the plots. A 30 FPS event loop keeps input and progress responsive; measurements update independently.
+
+### A workbench for each task
+
+Inspection pages use task-specific columns and a visible detail pane. Diagnostics
+separates the test catalog from findings, evidence and next steps. Monitoring puts
+the plot beside records; settings exposes appearance, monitoring, external access
+and saved profiles. Pi-hole and Tailscale have explicit connection/refresh states.
+Filtering and sorting preserve the identity used by action forms.
+
+The redesign follows [Hallmark](https://github.com/Nutlope/hallmark)'s hierarchy,
+restraint and consistency guidance, adapted to the existing native TUI. The shared
+system and scope are recorded in [design.md](design.md).
+
+![NEXUS workbench pages — labeled example data](docs/workbench-gallery.png)
+
+### Dithered graphs
+
+Both renderers draw stable ordered-dither dot fills beneath clear, shape-preserving traces. The texture stays anchored to the plot and stops at missing data.
 
 On **Kitty or a compatible terminal advertising Kitty graphics support**, NEXUS draws antialiased vector paths, rasterizes them to the current terminal cell dimensions and transmits compressed PNGs. Auto mode recognizes `xterm-kitty`, `xterm-ghostty` and Ghostty's `TERM_PROGRAM`. Other terminals and tmux/screen use curved Braille lines. Terminal cells cannot display true pixel-level curves without a graphics protocol.
 
@@ -187,10 +205,11 @@ nexus --chart-renderer kitty  # explicit compatible-terminal override
 nexus --chart-renderer text   # portable mode, including SSH / multiplexers
 ```
 
-SSH can carry the image protocol when the remote session advertises the compatible terminal; tmux/screen deliberately use text. `Ctrl+K → Toggle smooth / text graphs` switches the renderer. No terminal queries or external requests are required for detection.
+SSH can carry the image protocol when the remote session advertises the compatible terminal; tmux/screen deliberately use text. `Ctrl+K → Toggle pixel / text graphs` switches the renderer. No terminal queries or external requests are required for detection.
 
 - **Space** freezes the graphs while collection, current metric cards and diagnostics continue. Space resumes.
 - **[ / ]** selects **1 / 5 / 15 minutes** of traffic, or **30 / 90 / 300 probes** of latency. The axes are relative to the latest captured sample. Unrecorded time stays empty.
+- The Latency page charts the selected target, including when graphs are frozen. The overview retains its internet-target summary.
 - Traffic shows the visible peak. Latency shows **p95** (nearest rank) and loss for the visible probe window; the metric card's loss is session-wide.
 - Curves are display interpolation between measurements, bounded by adjacent measured values. They do not average away spikes, modify statistics or bridge missing replies. Long traffic sampling gaps break the line.
 - Images are encoded only when measurements, theme, range or dimensions change. Popups, page changes, resizing and exit remove the app's image overlays. Text mode sends no image commands.
@@ -203,9 +222,11 @@ configuration, routes and neighbor tables are read without contacting an
 external service. Cached Wi-Fi data is queried without requesting a scan.
 
 - **Ctrl+K** searches every page, tool and control.
-- **Tab / Shift+Tab** or **h / l** switches pages.
+- **Tab / Shift+Tab** or **h / l** switches pages; **, / .** moves within the current section. Secondary tabs are clickable.
+- **a** runs the visible page action through its existing form/consent flow.
+- **b** returns from a diagnostic result to the test catalog.
 - **j / k**, arrows, **g / G** and PageUp/PageDown move through tables.
-- **Enter** inspects a row; **/** filters; **S** searches across local data.
+- **Enter** inspects a row, or opens the selected test in the catalog; **/** filters; **S** searches across local data.
 - **m** toggles live ICMP monitoring. The gateway is local; configured internet
   targets and DNS test names are used only after external access is enabled.
 - **e** previews enabling external requests. A single diagnostic can also be

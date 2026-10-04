@@ -208,6 +208,9 @@ async fn main() -> Result<()> {
                     MouseEventKind::ScrollDown=>{app.selected=(app.selected+1).min(app.rows().1.len().saturating_sub(1));},MouseEventKind::ScrollUp=>app.selected=app.selected.saturating_sub(1),
                     MouseEventKind::Down(crossterm::event::MouseButton::Left) if mouse.row==0=>{
                             if let Some(page)=ui::clicked_tab(mouse.column, terminal.size()?.width){app.navigate(page);}
+                    },
+                    MouseEventKind::Down(crossterm::event::MouseButton::Left) if mouse.row==3 && app.page!=nexus_net::app::Page::Dashboard=>{
+                        if let Some(page)=ui::clicked_subtab(app.page,mouse.column,terminal.size()?.width){app.navigate(page);}
                     },_=>{}
                 },
                 Some(Err(e))=>{app.notice(format!("Terminal input error: {e}"));effect=Effect::Quit;},None=>effect=Effect::Quit,_=>{}

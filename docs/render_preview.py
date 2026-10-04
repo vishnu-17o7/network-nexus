@@ -29,6 +29,6 @@ for graphic in buffer.get("graphics", []):
     left = round(margin + graphic["x"] * cell_w)
     top = margin + graphic["y"] * cell_h
     right = round(margin + (graphic["x"] + graphic["width"]) * cell_w)
-    overlay = overlay.resize((right - left, graphic["height"] * cell_h), Image.Resampling.LANCZOS)
+    overlay = overlay.resize((right - left, graphic["height"] * cell_h), getattr(Image, "Resampling", Image).LANCZOS)
     image.paste(overlay, (left, top))
 image.save(sys.argv[2])

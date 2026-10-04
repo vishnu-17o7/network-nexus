@@ -1,47 +1,56 @@
-# NEXUS 0.4.1 release
+# NEXUS 0.5.0 — network workbench
 
-This patch fixes the v0.4.0 installation failure on Ubuntu 22.04. Release binaries
-are built natively for amd64 and ARM64 in Ubuntu 22.04 containers and packaging rejects requirements newer
-than GLIBC 2.35. CI also installs the generated Debian package and runs the installed
-executable. The host system does not need a libc replacement.
+The overview keeps its familiar layout. The rest of the app now has task-specific
+views: inspection lists with visible details, a focused diagnostic test catalog,
+findings with evidence and next steps, chart-led monitoring, service connection
+states, and preferences beside saved profiles.
 
-Smooth charts use Kitty-compatible terminal graphics; other terminals fall back to portable text. Space freezes graph history, [ / ] changes the traffic/probe range, and collection continues. See README for renderer selection and support boundaries.
+Both pixel and portable terminal graphs use stable ordered-dither fills beneath
+clear traces. Real spikes and missing-reply gaps remain visible. The Latency page
+charts the selected target, including frozen history. Background seams between
+panels, chart layers and gutters are removed across all six themes and custom colors.
 
-The release includes Linux amd64 and ARM64 `.deb` packages and binary archives,
-source and shared checksums. ARM64 packages target 64-bit Raspberry Pi OS Bookworm
-or newer and other compatible ARM64 Linux systems.
-The prebuilt executable targets glibc 2.35 or newer. Ubuntu 22.04 and 24.04 are CI targets;
-older systems and unlisted architectures should build from source.
+Secondary tabs are visible and clickable. Use **comma / period** to move within a
+section, **a** for the displayed page action, and **b** to return from a result to
+the test catalog. **Ctrl+K** continues to expose every tool and control. Filtering
+and sorting now keep interface, Wi-Fi, profile and Tailscale form defaults aligned
+with the visible selection. Compact layouts retain profile rows and diagnostic
+next steps. Muted and status text contrast is improved in built-in themes.
+
+The design system and Hallmark review are documented in `design.md`. Screenshots
+come from the actual widgets with labeled example data. The pending 0.4.2
+background fix is included here; there was no intermediate 0.4.2 release.
+
+## Install or upgrade
+
+Download the appropriate `.deb` and `SHA256SUMS` from this release into an empty
+directory. Verify the package reports `OK`, then install:
 
 ```bash
-sudo apt install ./nexus-net_0.4.1_amd64.deb
+sha256sum --check --ignore-missing SHA256SUMS
+sudo apt install ./nexus-net_0.5.0_amd64.deb
+nexus --version
+nexus --doctor
 nexus
 ```
 
-The package installs `/usr/bin/nexus`, a manual page and a terminal desktop
-launcher. It contains no maintainer scripts or service and does not alter network
-configuration. Optional networking utilities are recommended or suggested.
+For **64-bit Raspberry Pi OS Bookworm or newer**, confirm
+`dpkg --print-architecture` reports `arm64`, then install
+`nexus-net_0.5.0_arm64.deb` using the same steps. An `armhf` userspace cannot use the
+ARM64 binary. Standalone amd64 and ARM64 archives are also available.
 
-Pi-hole requires the v6 API; Tailscale requires its installed CLI and daemon. Connect explicitly via Ctrl+K. Credentials are session-only, and configuration controls keep the preview/confirmation flow. See README for setup and limitations.
+Native builds use Ubuntu 22.04 and reject GLIBC requirements above 2.35. Release
+publication requires Rust formatting/tests/Clippy, terminal navigation and
+restoration, blocked-I/O responsiveness, graphics transport, package installation,
+and verification of the exact artifacts on Ubuntu 24.04 amd64 and Debian 12/13 ARM64.
+Physical Pi hardware and individual terminal compositors remain outside CI coverage.
 
-All external checks remain explicit. Press `d` to run the diagnostic sequence,
-then choose a finding to inspect its evidence and next step. Use Ctrl+K for
-HTTP, DNS, DNS-over-TLS, TLS and configuration tools.
+Installation does not start a service or alter network configuration. External
+tests and network changes retain their existing consent and confirmation flows.
+Pi-hole credentials remain session-only. Windows, macOS, 32-bit ARM and static-musl
+binaries are not included.
 
-The GitHub workflows run formatting, tests, Clippy, release build, PTY and
-blocked-I/O responsiveness checks in Ubuntu 22.04 and 24.04 userspaces. The release
-job uses the Ubuntu 22.04 baseline and a maximum-GLIBC gate. The release workflow builds assets and creates
-a GitHub release for a pushed `v*` tag or a main-branch commit that changes Cargo.toml. Main-branch publishing skips an existing version rather than replacing its assets. A manual run only creates downloadable workflow artifacts.
-
-The included source archive contains `nexus-net.bundle`, the original v0.2.0/v0.3.0 Git history
-bundle. Current development history is tracked in GitHub. To recover that history:
-
-```bash
-git clone nexus-net.bundle nexus-net
-```
-
-Source tracking: https://github.com/vishnu-17o7/network-nexus. GitHub build and release status must be checked separately from the locally validated binaries.
-
-Common Linux distributions can use the standalone archive when they meet the CPU/libc requirements. Native Windows, macOS, 32-bit ARM and static-musl releases are not included. See [platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md).
-
-For Raspberry Pi, check `dpkg --print-architecture` reports `arm64`, then use `nexus-net_0.4.1_arm64.deb`. An `armhf` userspace cannot use this package, even with a 64-bit kernel. The ARM64 release artifacts pass installation and PTY checks on native ARM64 Debian 12/13 CI userspaces before publication; real Pi hardware and Wi-Fi drivers remain unverified. Full commands are in the [README](https://github.com/vishnu-17o7/network-nexus#raspberry-pi--64-bit-raspberry-pi-os).
+[Full installation instructions](https://github.com/vishnu-17o7/network-nexus#install-nexus-050)
+· [Platform support](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/PORTABILITY.md)
+· [Screenshots](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/workbench-gallery.png)
+· [Validation](https://github.com/vishnu-17o7/network-nexus/blob/main/docs/VALIDATION.md)

@@ -1,0 +1,21 @@
+{
+  "project": "NEXUS",
+  "version": "0.5.0",
+  "framework": "Rust / Ratatui 0.29",
+  "genre": "modern-minimal native terminal workbench",
+  "preserved": [
+    "Overview layout",
+    "ui::Theme semantic tokens and six themes",
+    "terminal-owned monospace font",
+    "existing typed actions and consent flows"
+  ],
+  "changes": [
+    "Secondary page structure",
+    "ordered dither chart fill",
+    "selected-record action defaults",
+    "compact layouts",
+    "built-in text contrast"
+  ],
+  "scope": "app redesign",
+  "reference": "https://github.com/Nutlope/hallmark/tree/main/skills/hallmark"
+}

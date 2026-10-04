@@ -1,4 +1,4 @@
-.TH NEXUS 1 "October 2026" "NEXUS 0.3.0" "User Commands"
+.TH NEXUS 1 "October 2026" "NEXUS 0.5.0" "User Commands"
 .SH NAME
 nexus \- terminal-native Linux network control center
 .SH SYNOPSIS
@@ -33,10 +33,10 @@ Use dark, oled, catppuccin, tokyo-night, gruvbox or light.
 .br
 .I ~/.local/share/nexus-net/history.json
 .SH KEYS
-Ctrl+K commands; d diagnose; Tab next page; j/k move; Enter inspect;
+Ctrl+K commands; d diagnose; Tab next page; comma/period section page; a primary action; j/k move; Enter inspect;
 / filter; ? help; x cancel a diagnostic; q exit.
 
 .SH GRAPH RENDERING
-Use --chart-renderer auto, kitty or text. Auto enables smooth graphics in known
+Use --chart-renderer auto, kitty or text. Both renderers use ordered dither fills beneath measured traces. Auto enables pixel graphics in known
 Kitty-compatible terminals; tmux/screen use portable text. Space freezes graphs
 while collection continues. [ and ] change the traffic/probe window.
